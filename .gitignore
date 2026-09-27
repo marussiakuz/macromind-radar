@@ -1,0 +1,41 @@
+# Белый список: по умолчанию не попадает ничего.
+# В корне лежат договоры, презентации и Pre-DD — публиковать их нельзя,
+# поэтому перечисляем то, что входит, а не то, что исключаем.
+/*
+!/.gitignore
+!/.env.example
+!/README.md
+
+# Конвейер радара
+!/hackathon/
+/hackathon/*
+!/hackathon/radar/
+!/hackathon/*.md
+!/hackathon/.gitignore
+
+# Интерфейс
+!/tech-trend-searcher/
+/tech-trend-searcher/*
+!/tech-trend-searcher/src/
+!/tech-trend-searcher/index.html
+!/tech-trend-searcher/package.json
+!/tech-trend-searcher/package-lock.json
+!/tech-trend-searcher/tsconfig.json
+!/tech-trend-searcher/vite.config.ts
+!/tech-trend-searcher/README.md
+
+# Общий стенд сравнения реализаций
+!/bench/
+/bench/pool-*.json
+
+# Внутри разрешённых каталогов — всё равно без секретов и мусора
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+node_modules/
+dist/
+.DS_Store
