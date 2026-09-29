@@ -118,7 +118,8 @@ def guarded_search(request: SearchRequest, http: Request) -> dict:
 
     # Повтор уже посчитанного запроса ничего не стоит: ни квоты, ни корзины.
     try:
-        already = server.cached_run(query) is not None
+        already = server.cached_run(query, plan=request.plan,
+            allow_legacy=request.demo or server.DEMO or os.environ.get("RADAR_CACHE_ONLY") == "1") is not None
     except Exception:
         already = False
 

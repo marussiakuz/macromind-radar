@@ -30,6 +30,8 @@ services:
       - radar
     environment:
       RADAR_HOST: "${RADAR_HOST}"
+      RADAR_ALT_HOST: "${RADAR_ALT_HOST:-158-160-50-0.sslip.io}"
+      MM_HOST: "${MM_HOST:-macromind.158-160-50-0.sslip.io}"
     ports:
       - "80:80"
       - "443:443"
@@ -38,6 +40,8 @@ services:
       # Собранный интерфейс: тот же адрес, что и сервис, поэтому ни CORS, ни смешанного
       # содержимого не возникает.
       - ./ui:/srv/ui:ro
+      # Прототип продукта MacroMind — отдельный сайт на своём имени.
+      - ./ui-macromind:/srv/macromind:ro
       - caddy-data:/data
       - caddy-config:/config
 

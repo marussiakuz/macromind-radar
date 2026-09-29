@@ -9,7 +9,6 @@ from __future__ import annotations
 import argparse
 import json
 import time
-from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
@@ -18,6 +17,10 @@ from .config import (Candidate, DocumentSnapshot, Limits, RunManifest, SearchHit
                      RUNS_DIR, FIXTURES_DIR, load_env_file)
 from .evaluate import Funnel, compute_c, check_do_not_merge, read_review_file, report, suggest_matches, write_review_file
 from .extract import PROMPT_VERSION, FixtureLLM, YandexLLM, extract, merge_candidates
+from .selection import select_documents, document_contexts
+from .passages import all_spans, unread_sections
+from .versioning import pool_signature
+from .dedup import accept as accept_candidates
 from .fetch import Fetcher, FixtureFetcher, parse_document
 from .hypotheses import generate as generate_hypotheses, verify as verify_hypothesis
 from .reference import area_items, load_reference
@@ -122,7 +125,7 @@ def run_pool(
     # Русские запросы имеют смысл только в вебе: в академических базах русских
     # работ по этим темам почти нет, а термины всё равно английские.
     ru_share = 0.0 if lenses == ("research",) else 0.2
-    funnel.notes.append("линзы: " + ", ".join(lenses))
+    funnel.notes.append("режим плана: " + plan)
     if tree is not None:
         from .discovery import search_tree
         def save_search(t, found):
@@ -136,6 +139,7 @@ def run_pool(
                                                ru_share=ru_share, lenses=lenses):
             hits.extend(searcher.search(query, lang, lens, lim.results_per_query))
             funnel.queries += 1
+    funnel.notes.append("выполненные линзы: " + ", ".join(sorted({h.lens for h in hits})))
     funnel.hits = len(hits)
 
     api_snapshots = getattr(searcher, "snapshots", {}) or {}
@@ -193,72 +197,103 @@ def run_pool(
             funnel.parsed_ok += 1
             docs.append(snapshot)
 
-    # Какие документы уходят в извлечение. Раньше брались первые по порядку загрузки
-    # (`docs[:extraction_packets]`). Опыт 28.09.2026 показал, что решает состав, а не
-    # размер: при равном бюджете 48 пакетов отбор по разнообразию дал 7 эталонных строк
-    # из 17 против 5, а вместе с расширенной загрузкой — 9 из 17. Отбираем по кругу между
-    # запросами, первоисточник вперёд, не больше трёх документов с одного хоста.
-    hit_of = {}
-    for i, h in enumerate(selected):
-        hit_of.setdefault(h.url, (getattr(h, "query", ""), i))
-        hit_of.setdefault((h.url or "").rstrip("/"), (getattr(h, "query", ""), i))
-
-    def _doc_key(doc) -> tuple[str, int]:
-        for key in (getattr(doc, "final_url", ""), getattr(doc, "url", "")):
-            if key in hit_of:
-                return hit_of[key]
-            if (key or "").rstrip("/") in hit_of:
-                return hit_of[(key or "").rstrip("/")]
-        return ("", 999)
-
-    def select_documents(items: list, limit: int) -> list:
-        from .hoststats import host_of, layer_of
-        buckets: dict[str, list] = {}
-        for d in items:
-            query, pos = _doc_key(d)
-            buckets.setdefault(query, []).append((pos, d))
-        for q in buckets:
-            buckets[q].sort(key=lambda t: (0 if layer_of(host_of(
-                getattr(t[1], "url", "") or "")) == "первоисточник" else 1, t[0]))
-        picked, host_used, queries = [], Counter(), sorted(buckets)
-        while len(picked) < limit and any(buckets[q] for q in queries):
-            for q in queries:
-                if len(picked) >= limit or not buckets[q]:
-                    continue
-                _, d = buckets[q].pop(0)
-                host = host_of(getattr(d, "url", "") or "")
-                if host_used[host] >= 3:
-                    continue
-                host_used[host] += 1
-                picked.append(d)
-        return picked
-
-    docs_for_extraction = select_documents(docs, lim.extraction_packets)
+    docs_for_extraction, selection_report = select_documents(
+        docs, hits, lim.extraction_packets, tree=tree)
+    contexts, _ = document_contexts(docs, hits, tree)
     _jsonl(out / "documents.jsonl", docs)
     _jsonl(out / "fetches.jsonl", fetches)
-    (out / "extraction-selection.json").write_text(json.dumps(
-        [d.url for d in docs_for_extraction], ensure_ascii=False, indent=2))
-    funnel.notes.append(f"на извлечение отобрано {len(docs_for_extraction)} из {len(docs)} "
-                        f"документов по разнообразию запросов и хостов")
+    (out / "extraction-plan.json").write_text(json.dumps(selection_report, ensure_ascii=False, indent=2))
+    funnel.notes.append(f"на извлечение запланировано {len(docs_for_extraction)} из {len(docs)} "
+                        "документов по листьям и содержательности; алиасы учитываются совместно")
 
     cutoff = datetime.now(timezone.utc).date().isoformat()
     candidates: list[Candidate] = []
     in_tok = out_tok = 0
-    for doc in docs_for_extraction:
+    extraction_log, processed, continuations = [], [], []
+    _jsonl(out / "extraction-results.jsonl", [])
+    # Ключ повтора — документ плюс название; механизм модель пересказывает, см. dedup.py.
+    candidate_keys: dict = {}
+    accepted_stats = {"proposed": 0, "accepted": 0, "duplicates": 0,
+                      "evidence_from_duplicates": 0}
+    stopped = False
+    reserve = min(4, max(0, lim.extraction_packets - len(tree['leaves']))) if tree else 0
+    first_pass = min(len(docs_for_extraction), max(0, lim.extraction_packets - reserve))
+
+    def process(doc, previous=None):
+        nonlocal in_tok, out_tok, stopped
+        if len(extraction_log) >= lim.extraction_packets:
+            return
         if time.monotonic() - started >= lim.run_deadline_s:
             funnel.notes.append("извлечение остановлено по сроку; сохранён частичный пул")
-            break
+            stopped = True
+            return
         from .ledger import LimitReached
+        exclude = previous.span_ids if previous and not previous.has_more_candidates else ()
+        existing = [c.name_ru for c in candidates if c.document_sha256 == doc.text_sha256]
         try:
-            res = extract(doc, llm, cutoff=cutoff)
+            res = extract(doc, llm, cutoff=cutoff, queries=contexts[doc.url]['queries'],
+                          exclude_span_ids=exclude, existing_candidates=existing)
         except LimitReached:
-            funnel.notes.append('извлечение остановлено по бюджету; сохранён частичный пул')
-            break
+            funnel.notes.append("извлечение остановлено по бюджету; сохранён частичный пул")
+            stopped = True
+            return
         in_tok += res.input_tokens
         out_tok += res.output_tokens
-        candidates.extend(res.candidates)
+        stats = accept_candidates(candidates, candidate_keys, res.candidates)
+        for name in ("proposed", "accepted", "duplicates", "evidence_from_duplicates"):
+            accepted_stats[name] += stats[name]
+        if doc not in processed:
+            processed.append(doc)
+        extraction_log.append({"url": doc.url, "document_sha256": doc.text_sha256,
+            "continuation": previous is not None, "span_ids": res.span_ids,
+            "candidate_count": len(res.candidates), "accepted": stats["accepted"],
+            "duplicates": stats["duplicates"], "has_more_candidates": res.has_more_candidates,
+            "no_technology_reason": res.no_technology_reason, "diagnostics": res.diagnostics,
+            "input_tokens": res.input_tokens, "output_tokens": res.output_tokens})
+        _jsonl(out / "extraction-results.jsonl", extraction_log)
         _jsonl(out / "candidates.partial.jsonl", candidates)
+        (out / "extraction-selection.json").write_text(json.dumps(
+            [d.url for d in processed], ensure_ascii=False, indent=2))
+        # Причина продолжения записывается: «модель сказала, что всё» — это утверждение
+        # о показанном тексте, а не о документе. 29.09.2026 документ 704d8f65… вернул три
+        # кандидата и has_more_candidates=false, а непереданное окно s7 содержало
+        # отдельную реализацию SNN-ускорителя с открытым маршрутом проектирования.
+        reason = None
+        if previous is None:
+            unread = unread_sections(doc, res.span_ids)
+            if res.has_more_candidates:
+                reason = "модель сообщила о незавершённом чтении"
+            elif not res.candidates and len(all_spans(doc)) > len(res.span_ids):
+                reason = "пустой ответ при непрочитанном тексте"
+            elif unread:
+                reason = ("непрочитанные разделы с новым содержимым: "
+                          + ",".join(s.span_id for s in unread[:6]))
+            extraction_log[-1]["unread_sections"] = [s.span_id for s in unread]
+            extraction_log[-1]["continuation_reason"] = reason
+            if reason:
+                continuations.append((doc, res))
+            _jsonl(out / "extraction-results.jsonl", extraction_log)
+
+    for doc in docs_for_extraction[:first_pass]:
+        process(doc)
+        if stopped: break
+    # At most four follow-ups, inside the SAME packet cap. Explicit overflow comes first.
+    if not stopped:
+        for doc, previous in sorted(continuations, key=lambda pair: not pair[1].has_more_candidates)[:reserve]:
+            process(doc, previous)
+            if stopped: break
+    if not stopped:
+        for doc in docs_for_extraction[first_pass:]:
+            process(doc)
+            if stopped or len(extraction_log) >= lim.extraction_packets: break
+    docs_for_extraction = processed
+    (out / "extraction-selection.json").write_text(json.dumps(
+        [d.url for d in processed], ensure_ascii=False, indent=2))
+    funnel.notes.append(f"выполнено пакетов извлечения {len(extraction_log)}, "
+                        f"разных документов {len(processed)}")
     funnel.extracted_candidates = len(candidates)
+    funnel.proposed_candidates = accepted_stats['proposed']
+    funnel.duplicate_candidates = accepted_stats['duplicates']
 
     # In tree mode keep categories intact until the downstream proof filters and
     # guarded semantic merge. Lexical overlap must not silently erase a narrower one.
@@ -288,6 +323,8 @@ def run_pool(
         run_id=run_id, area=area or "открытый запрос", query=direction, mode=mode, cutoff=cutoff,
         model=getattr(settings, "model_uri", ""), prompt_version=PROMPT_VERSION,
         reference_sha256=ref_sha, limits=lim.__dict__,
+        plan=plan, pool_signature=pool_signature(settings, plan, lenses),
+        execution_complete=not stopped and time.monotonic() - started < lim.run_deadline_s,
         counters={**funnel.as_dict(), "input_tokens": in_tok, "output_tokens": out_tok,
                   "search_calls": getattr(searcher, "calls", 0),
                   "free_search_calls": getattr(searcher, "free_calls", 0)},

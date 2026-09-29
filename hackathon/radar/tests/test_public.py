@@ -28,7 +28,7 @@ def public(tmp_path, monkeypatch):
     monkeypatch.setattr(mod, "TOKEN", "")
     # Живой прогон не запускаем ни при каких условиях: проверяем только привратника бюджета.
     monkeypatch.setattr(server, "search", lambda request: {"job_id": "test", "demo": False})
-    monkeypatch.setattr(server, "cached_run", lambda query: None)
+    monkeypatch.setattr(server, "cached_run", lambda query, **kwargs: None)
     monkeypatch.setattr(mod, "budget_state", lambda: {
         "known": True, "search": 500.0, "llm": 300.0,
         "run_cost_search": 60.0, "run_cost_llm": 30.0, "runs_left": 8})
@@ -95,7 +95,7 @@ def test_low_budget_refuses_instead_of_starting_a_doomed_run(public, monkeypatch
 
 def test_repeat_of_a_saved_run_is_free_and_keeps_quota(public, monkeypatch) -> None:
     from radar import server
-    monkeypatch.setattr(server, "cached_run", lambda query: Path("/tmp/сохранённый-прогон"))
+    monkeypatch.setattr(server, "cached_run", lambda query, **kwargs: Path("/tmp/сохранённый-прогон"))
     monkeypatch.setattr(public, "budget_state", lambda: {
         "known": True, "search": 0.0, "llm": 0.0,
         "run_cost_search": 60.0, "run_cost_llm": 30.0, "runs_left": 0})

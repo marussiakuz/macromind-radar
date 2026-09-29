@@ -16,8 +16,17 @@
 !/hackathon/
 /hackathon/*
 !/hackathon/radar/
-!/hackathon/*.md
 !/hackathon/.gitignore
+# Документы публикуем поимённо. Переписка с ассистентами, промпты для них, точки
+# возврата и их промежуточные отчёты в продуктовый репозиторий не входят: жюри должно
+# видеть работающее решение, а не журнал работы над ним.
+!/hackathon/architecture-2026-09-29.md
+!/hackathon/deploy-mvp-2026-09-29.md
+!/hackathon/submission-methodology-2026-09-28.md
+!/hackathon/reference-funnel-audit-2026-09-29.md
+!/hackathon/methods-weak-signals.md
+!/hackathon/runbook-demo-2026-09-28.md
+!/hackathon/screencast-script-2026-09-29.md
 !/hackathon/requirements.txt
 # Развёртывание публичного MVP: образ, compose, HTTPS-прокси, сборщик посылки состояния
 !/hackathon/Dockerfile
@@ -28,8 +37,13 @@
 /hackathon/deploy/*.tar.gz
 # Настоящая выборка одного прогона: инструменты и тесты работают без сети и без оплаты
 !/hackathon/samples/
-# Опыты: датасет ранжирования, обучение реранкера, замеры покрытия, карточка модели
+# Опыты: только то, на что ссылается документация, — карточка модели, её обучение и
+# датасет оценок. Промежуточные выгрузки разметки моделью не публикуем.
 !/hackathon/learning/
+/hackathon/learning/*
+!/hackathon/learning/reranker-card-20260929.json
+!/hackathon/learning/train_reranker.py
+!/hackathon/learning/rank-dataset-20260929.json
 
 # Интерфейс
 !/tech-trend-searcher/
@@ -42,9 +56,7 @@
 !/tech-trend-searcher/vite.config.ts
 !/tech-trend-searcher/README.md
 
-# Общий стенд сравнения реализаций
-!/bench/
-/bench/pool-*.json
+# Стенд сравнения двух реализаций — рабочий артефакт, в продуктовый репозиторий не идёт
 
 # Внутри разрешённых каталогов — всё равно без секретов и мусора
 .env

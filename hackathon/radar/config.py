@@ -29,6 +29,15 @@ AREAS = [
 ]
 
 
+def _env_num(name: str, default, cast=int):
+    """Потолок из окружения. Пусто или мусор — остаётся значение по умолчанию."""
+    raw = os.getenv(name, "").strip()
+    try:
+        return cast(raw) if raw else default
+    except ValueError:
+        return default
+
+
 @dataclass(frozen=True)
 class Limits:
     """Потолки одного прогона пула кандидатов."""
@@ -42,14 +51,35 @@ class Limits:
     # платит только извлечение, поэтому пределы разведены.
     fetch_attempts: int = 200          # загрузки и платное извлечение ограничены отдельно
     max_per_owner: int = 4             # не больше 4 URL одного владельца
-    extraction_packets: int = 72       # пакетов извлечения (отбор по разнообразию)
+    # Читаем весь скачанный корпус, а единственный отсев — по дате публикации.
+    # Порог 2024-01-01 выведен из источников заказчика 29.09.2026: скачаны все 283 ссылки
+    # его таблицы, дата нашлась у 115, и это единственная граница, при которой ни одна из
+    # 100 строк не теряет все свои датированные источники (при окне в 24 месяца теряются
+    # три, включая «NPU внутри батарейных MCU/SoC»).
+    # Цена полного чтения: ≈1 ₽ за документ, то есть 150–160 ₽ на область вместо 72.
+    # Для показа потолки возвращаются окружением, код править не нужно.
+    #   RADAR_EXTRACTION_PACKETS — сколько документов читает модель (≈1 ₽ за документ);
+    #   RADAR_MAX_PER_SOURCE     — сколько документов берём с одного обычного сайта;
+    #   RADAR_MIN_PUBLISHED      — отсечка по дате публикации, YYYY-MM-DD.
+    extraction_packets: int = field(
+        default_factory=lambda: _env_num("RADAR_EXTRACTION_PACKETS", 200))
+    # Три документа с одного сайта — это один голос, а не три подтверждения. Репозитории
+    # (arXiv, DOI, GitHub, OpenAlex) считаются по работам, ограничение бьёт по обычным сайтам.
+    max_per_source: int = field(
+        default_factory=lambda: _env_num("RADAR_MAX_PER_SOURCE", 999))
+    # Документы старше этой даты на извлечение не идут. Пусто — фильтра нет. Документы
+    # без даты остаются всегда: дата известна меньше чем у половины корпуса, и отбрасывать
+    # их значило бы терять сигналы, а не старьё.
+    min_published: str = field(
+        default_factory=lambda: os.getenv("RADAR_MIN_PUBLISHED", "2024-01-01").strip())
     fetch_timeout_s: float = 12.0      # на DNS, robots, редиректы и тело
     max_redirects: int = 3
     max_html_bytes: int = 5 * 1024 * 1024
     max_pdf_bytes: int = 15 * 1024 * 1024
     per_origin_delay_s: float = 5.0
     concurrency: int = 8
-    run_deadline_s: float = 1200.0
+    run_deadline_s: float = field(
+        default_factory=lambda: _env_num("RADAR_RUN_DEADLINE_S", 3600.0, float))
 
 
 @dataclass(frozen=True)
@@ -203,6 +233,9 @@ class ExtractionResult(BaseModel):
     prompt_version: str = ""
     input_tokens: int = 0
     output_tokens: int = 0
+    has_more_candidates: bool = False
+    diagnostics: list[dict] = Field(default_factory=list)
+    span_ids: list[str] = Field(default_factory=list)
 
 
 class RunManifest(BaseModel):
@@ -212,6 +245,9 @@ class RunManifest(BaseModel):
     area: str
     query: str
     mode: Literal["live", "fixtures", "dry", "hypotheses"]
+    pool_signature: str = ""
+    plan: str = ""
+    execution_complete: bool = False  # Planned bounded work finished, not full domain recall.
     started_at: str = Field(default_factory=utcnow)
     finished_at: str | None = None
     cutoff: str = ""

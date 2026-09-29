@@ -37,6 +37,10 @@ class Funnel:
     from_api: int = 0          # документы, пришедшие из API вместе с текстом
     fetched_ok: int = 0
     parsed_ok: int = 0
+    # Три разные величины, которые нельзя складывать: сколько модель предложила,
+    # сколько принято в пул и сколько отброшено как повтор внутри документа.
+    proposed_candidates: int = 0
+    duplicate_candidates: int = 0
     extracted_candidates: int = 0
     after_merge: int = 0
     matched_reference: int = 0

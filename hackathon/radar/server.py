@@ -112,8 +112,13 @@ def known_area(query: str) -> str:
     return ""
 
 
-def cached_run(query: str) -> Path | None:
-    """Последний сохранённый прогон с тем же запросом."""
+def cached_run(query: str, *, plan="tree", allow_legacy=False, settings=None) -> Path | None:
+    """Use compatible pools; old demos remain readable only by explicit offline policy."""
+    from .versioning import pool_signature
+    if settings is None:
+        load_env_file()
+        settings = Settings()
+    signature = pool_signature(settings, plan)
     best = None
     for run in sorted(RUNS_DIR.glob("2026*"), reverse=True):
         manifest = run / "manifest.json"
@@ -125,10 +130,15 @@ def cached_run(query: str) -> Path | None:
             continue
         if data.get('mode') != 'live':
             continue
+        compatible = data.get('pool_signature') == signature and data.get('execution_complete') is True
+        if not allow_legacy and not compatible:
+            continue
         if (data.get("query", "").strip().lower() == query.strip().lower()
                 or data.get('area', '').strip().lower() == query.strip().lower()):
-            best = run
-            break
+            if compatible:
+                return run
+            if best is None:
+                best = run
     return best
 
 
@@ -506,7 +516,8 @@ def worker(job_id: str, request: SearchRequest) -> None:
     try:
         load_env_file()
         settings = Settings()
-        run = cached_run(request.query)
+        run = cached_run(request.query, plan=request.plan, settings=settings,
+                         allow_legacy=request.demo or DEMO or os.environ.get("RADAR_CACHE_ONLY") == "1")
         if run is not None:
             job["stage"] = "найден сохранённый прогон"
             job["cached"] = True

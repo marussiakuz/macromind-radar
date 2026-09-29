@@ -1,5 +1,5 @@
 import { Link, useParams } from "react-router-dom";
-import { sourceById, trendById, trendTrust } from "../data";
+import { sourceById, trendById, trendTrust, uniqueSources } from "../data";
 import { useApp } from "../state";
 import { Button, Sparkline, statusBadge, trustBadge } from "../ui";
 
@@ -263,7 +263,7 @@ export function TrendCard() {
             </tr>
           </thead>
           <tbody>
-            {trend.sources.map((source) => (
+            {uniqueSources(trend).map((source) => (
               <tr key={source.id}>
                 <td>
                   <a href={source.url} target="_blank" rel="noreferrer">

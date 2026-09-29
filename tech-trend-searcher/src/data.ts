@@ -691,7 +691,7 @@ export const savedQuery = genAnalyses[0]?.query || "Технологии в ИИ
 
 export const searchStats = {
   candidates: genPoolSize || 186,
-  sources: allTrends.reduce((sum, item) => sum + item.sources.length, 0),
+  sources: allTrends.reduce((sum, item) => sum + uniqueSources(item).length, 0),
   highConfidence: allTrends.filter((item) => item.signal >= 75).length,
 };
 
@@ -753,10 +753,15 @@ export const thresholdRejects = [
 ];
 
 export function trendTrust(trend: Trend): Trust {
-  if (trend.sources.some((item) => item.trust === "низкий") && trend.sources.length < 2) {
+  // Считаем по источникам без повторов. Иначе одна и та же ненадёжная статья, попавшая
+  // в список дважды, выглядела как два источника и поднимала доверие с «низкого» до
+  // «среднего» — то есть повтор в данных превращался в завышенную оценку (найдено
+  // 29.09.2026 на карточке конфиденциальных вычислений).
+  const sources = uniqueSources(trend);
+  if (sources.some((item) => item.trust === "низкий") && sources.length < 2) {
     return "низкий";
   }
-  if (trend.sources.every((item) => item.trust === "высокий")) return "высокий";
+  if (sources.every((item) => item.trust === "высокий")) return "высокий";
   return "средний";
 }
 
@@ -764,8 +769,34 @@ export function trendById(id: string) {
   return allTrends.find((item) => item.id === id);
 }
 
+/**
+ * Источники карточки без повторов: один адрес — одна строка.
+ *
+ * Конвейер кладёт в список отдельную запись на каждое доказательство, поэтому одна и
+ * та же статья попадала в таблицу по два-три раза с одинаковыми датой и описанием
+ * (проверено 29.09.2026: на «Финтехе» и «Индустриальном ИИ» — 8 карточек из 15).
+ * Для аналитика это выглядит как разные подтверждения, хотя источник один, — то есть
+ * завышает видимую независимость доказательств. Схлопываем по адресу, сохраняя первую
+ * запись: у неё цитата, на которую ссылается разбор.
+ */
+export function uniqueSources(trend: Trend): Source[] {
+  const seen = new Set<string>();
+  const out: Source[] = [];
+  for (const item of trend.sources) {
+    const key = (item.url || item.id || "").trim().toLowerCase();
+    if (key && seen.has(key)) continue;
+    if (key) seen.add(key);
+    out.push(item);
+  }
+  return out;
+}
+
 export function sourceById(trend: Trend, id?: string | null) {
-  return trend.sources.find((item) => item.id === id);
+  const found = trend.sources.find((item) => item.id === id);
+  if (!found) return undefined;
+  // Утверждение может ссылаться на запись, которую склейка убрала: отдаём оставшуюся
+  // запись того же адреса, иначе блок с цитатой молча исчезнет.
+  return uniqueSources(trend).find((item) => item.url === found.url) ?? found;
 }
 
 /**

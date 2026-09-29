@@ -349,7 +349,10 @@ def select_urls(hits: list[SearchHit], limit: int, max_per_owner: int,
             url = hit.url.split("#")[0]
             if url in seen:
                 continue
-            owner = registrable_domain(url)
+            # A resolver/repository hosts independent publications and projects.
+            from .selection import source_unit
+            unit = source_unit(url)
+            owner = registrable_domain(url) if unit.startswith("host:") else unit
             if url not in exempt and per_owner.get(owner, 0) >= max_per_owner:
                 continue
             seen.add(url)

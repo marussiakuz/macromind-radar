@@ -10,14 +10,14 @@ import json
 import re
 import hashlib
 from pathlib import Path
-from dataclasses import dataclass
 from typing import Protocol
 
 import httpx
 
 from .config import Candidate, DocumentSnapshot, Evidence, ExtractionResult, Settings, RUNS_DIR
+from .passages import Span, make_spans
 
-PROMPT_VERSION = "extract/0.3"
+PROMPT_VERSION = "extract/0.4"
 
 SYSTEM_PROMPT = """Ты извлекаешь технологические категории из одного предоставленного документа.
 Не оценивай зрелость рынка и не ранжируй слабые сигналы.
@@ -48,6 +48,9 @@ SYSTEM_PROMPT = """Ты извлекаешь технологические ка
 5. Организации указывай с ролью, только при прямом утверждении в тексте.
 6. Каждый кандидат обязан иметь хотя бы одну цитату: короткий дословный фрагмент
    на исходном языке и span_id, из которого он взят. Цитаты не переводи.
+   Копируй непрерывный текст из одного спана без сокращений и добавленных многоточий.
+   Если нужны два места текста, верни две отдельные цитаты, каждую со своим span_id.
+   existing_candidates уже извлечены: не повторяй их, ищи другие механизмы.
 7. Несколько кандидатов — только для разных доказанных механизмов. Общий бренд
    или аббревиатура не доказывают тождество категорий.
 8. Если документ описывает только область, обзор темы или тип атаки без
@@ -114,39 +117,6 @@ RESPONSE_SCHEMA = {
         },
     },
 }
-
-
-@dataclass
-class Span:
-    span_id: str
-    heading: str
-    text: str
-
-
-def make_spans(doc: DocumentSnapshot, max_chars: int = 1200, max_spans: int = 12) -> list[Span]:
-    """Режет текст по абзацам на спаны. Цитаты потом проверяются внутри своего спана."""
-    spans: list[Span] = []
-    buf: list[str] = []
-    heading = doc.title
-    size = 0
-    for para in doc.text.split("\n"):
-        if not para:
-            continue
-        if len(para) < 80 and para.endswith(tuple("：:")) is False and len(para.split()) <= 12:
-            if buf and size > 200:
-                spans.append(Span(f"s{len(spans) + 1}", heading, "\n".join(buf)))
-                buf, size = [], 0
-            heading = para
-        buf.append(para)
-        size += len(para)
-        if size >= max_chars:
-            spans.append(Span(f"s{len(spans) + 1}", heading, "\n".join(buf)))
-            buf, size = [], 0
-        if len(spans) >= max_spans:
-            break
-    if buf and len(spans) < max_spans:
-        spans.append(Span(f"s{len(spans) + 1}", heading, "\n".join(buf)))
-    return spans
 
 
 class LLM(Protocol):
@@ -260,71 +230,126 @@ def _json_from_text(text: str) -> dict | None:
             return None
 
 
-def extract(doc: DocumentSnapshot, llm: LLM, cutoff: str, source_type: str = "unknown") -> ExtractionResult:
-    """Один пакет извлечения. Возвращает только кандидатов с проверенными цитатами."""
-    spans = make_spans(doc)
+def _quote_parts(quote: str, span_text: str) -> tuple[list[str], str]:
+    if quote and quote in span_text:
+        return [quote], "exact"
+    # Recover omitted stretches only when EVERY substantive part is exact, in order,
+    # within the declared span. Never fuzzy-match, translate or discard invented parts.
+    parts = [p.strip() for p in re.split(r"\.{3,}|…", quote) if p.strip()]
+    if len(parts) < 2 or any(len(p) < 20 or len(p.split()) < 3 for p in parts):
+        return [], "quote_not_verbatim"
+    cursor = 0
+    for part in parts:
+        at = span_text.find(part, cursor)
+        if at < 0:
+            return [], "quote_not_verbatim"
+        cursor = at + len(part)
+    return parts, "split_ellipsis"
+
+
+def parse_extraction(doc: DocumentSnapshot, text: str, spans: list[Span], *,
+                     model="fixture", input_tokens=0, output_tokens=0) -> ExtractionResult:
+    """Validate a saved or live answer without invoking a model."""
+    from pydantic import ValidationError
+    result = ExtractionResult(model=model, prompt_version=PROMPT_VERSION,
+                              input_tokens=input_tokens, output_tokens=output_tokens,
+                              span_ids=[s.span_id for s in spans])
+    data = _json_from_text(text)
+    if not isinstance(data, dict):
+        result.no_technology_reason = "ответ модели не разобран как объект JSON"
+        result.diagnostics.append({"reason": "invalid_json"})
+        return result
+    if data.get("document_id", doc.text_sha256[:16]) != doc.text_sha256[:16]:
+        result.no_technology_reason = "ответ относится к другому документу"
+        result.diagnostics.append({"reason": "document_id_mismatch"})
+        return result
+    result.has_more_candidates = data.get("has_more_candidates") is True
+    by_id = {s.span_id: s for s in spans}
+    raw_candidates = data.get("candidates")
+    if not isinstance(raw_candidates, list):
+        raw_candidates = []
+        result.diagnostics.append({"reason": "invalid_candidates_array"})
+    for index, raw in enumerate(raw_candidates[:6]):
+        row = {"candidate_index": index, "raw_candidate": raw, "accepted": False}
+        result.diagnostics.append(row)
+        if not isinstance(raw, dict) or not all(isinstance(raw.get(k), str) and raw[k].strip()
+                                               for k in ("name_ru", "mechanism")):
+            row["reason"] = "invalid_candidate_fields"
+            continue
+        evidence, repairs, quote_errors = [], [], []
+        raw_evidence = raw.get("evidence")
+        for ev in raw_evidence if isinstance(raw_evidence, list) else []:
+            if not isinstance(ev, dict) or not isinstance(ev.get("quote"), str):
+                quote_errors.append("invalid_quote_fields"); continue
+            span = by_id.get(str(ev.get("span_id", "")))
+            if span is None:
+                quote_errors.append("unknown_span"); continue
+            parts, reason = _quote_parts(ev["quote"].strip(), span.text)
+            if not parts:
+                quote_errors.append(reason); continue
+            bound_start = span.start if doc.text[span.start:span.end] == span.text else doc.text.find(span.text)
+            cursor = 0
+            accepted_parts = []
+            for quote in parts:
+                offset = span.text.find(quote, cursor)
+                cursor = offset + len(quote)
+                start = bound_start + offset if bound_start >= 0 else doc.text.find(quote)
+                if start < 0 or doc.text[start:start + len(quote)] != quote:
+                    accepted_parts = []; quote_errors.append("quote_not_in_document"); break
+                accepted_parts.append(Evidence(quote=quote, start=start, end=start + len(quote),
+                    source_url=doc.final_url, document_sha256=doc.text_sha256))
+            evidence.extend(accepted_parts)
+            if accepted_parts and reason != "exact":
+                repairs.append({"span_id": span.span_id, "method": reason, "parts": len(parts)})
+        row.update(quote_errors=quote_errors, repairs=repairs)
+        if not evidence:
+            row["reason"] = "no_valid_quote"
+            continue
+        stage = raw.get("stage")
+        if stage not in ("research", "prototype", "pilot", "limited_sales", "scaled", "unknown"):
+            stage = "unknown"
+        try:
+            c = Candidate(name_ru=raw["name_ru"].strip(), mechanism=raw["mechanism"].strip(),
+                name_orig=raw.get("name_orig") or None, object_affected=raw.get("object_affected") or None,
+                context=raw.get("context") or None, stage=stage,
+                organizations=[str(o) for o in raw.get("organizations", [])][:10]
+                              if isinstance(raw.get("organizations"), list) else [],
+                event_date=raw.get("event_date") or None, evidence=evidence,
+                source_url=doc.final_url, document_sha256=doc.text_sha256)
+        except ValidationError:
+            row["reason"] = "invalid_candidate_schema"
+            continue
+        result.candidates.append(c)
+        row.update(accepted=True, reason="accepted")
+    if len(raw_candidates) > 6:
+        result.has_more_candidates = True
+        result.diagnostics.append({"reason": "candidate_packet_limit", "omitted": len(raw_candidates)-6})
+    if not result.candidates:
+        result.no_technology_reason = str(data.get("no_technology_reason") or "кандидаты не прошли проверку цитат")
+    return result
+
+
+def extract(doc: DocumentSnapshot, llm: LLM, cutoff: str, source_type: str = "unknown", *,
+            queries=(), exclude_span_ids=(), existing_candidates=()) -> ExtractionResult:
+    """One bounded packet, with a journal of rejected proposals and exact evidence."""
+    spans = make_spans(doc, queries=queries, exclude_ids=exclude_span_ids)
+    if not spans:
+        return ExtractionResult(no_technology_reason="не осталось непрочитанных фрагментов",
+                                prompt_version=PROMPT_VERSION)
     payload = {
-        "manifest": {
-            "document_id": doc.text_sha256[:16],
-            "document_published_date": doc.published_at,
-            "cutoff": cutoff,
-            "source_type": source_type,
-            "language": doc.lang or "unknown",
-            "title": doc.title,
-        },
-        "spans": [{"span_id": s.span_id, "heading": s.heading, "text": s.text} for s in spans],
+        "manifest": {"document_id": doc.text_sha256[:16],
+            "document_published_date": doc.published_at, "cutoff": cutoff,
+            "source_type": source_type, "language": doc.lang or "unknown", "title": doc.title},
+        "query_context": list(queries),
+        "existing_candidates": list(existing_candidates),
+        "spans": [{"span_id": s.span_id, "heading": s.heading, "text": s.text,
+                   "start": s.start, "end": s.end} for s in spans],
         "schema": RESPONSE_SCHEMA,
     }
     text, tin, tout = llm.complete(SYSTEM_PROMPT, payload)
-    data = _json_from_text(text)
-    result = ExtractionResult(model=getattr(llm, "s", None) and llm.s.model_uri or "fixture",
-                              prompt_version=PROMPT_VERSION, input_tokens=tin, output_tokens=tout)
-    if not data:
-        result.no_technology_reason = "ответ модели не разобран как JSON"
-        return result
-
-    by_id = {s.span_id: s.text for s in spans}
-    for raw in (data.get("candidates") or [])[:6]:
-        try:
-            name = str(raw["name_ru"]).strip()
-            mechanism = str(raw["mechanism"]).strip()
-        except (KeyError, TypeError):
-            continue
-        if not name or not mechanism:
-            continue
-        evidence: list[Evidence] = []
-        for ev in raw.get("evidence") or []:
-            quote = str(ev.get("quote", "")).strip()
-            span_text = by_id.get(str(ev.get("span_id", "")), "")
-            if not quote or quote not in span_text:
-                continue  # выдуманная цитата: кандидат её не получает
-            start = doc.text.find(quote)
-            evidence.append(Evidence(quote=quote, start=start if start >= 0 else None,
-                                     end=start + len(quote) if start >= 0 else None,
-                                     source_url=doc.final_url, document_sha256=doc.text_sha256))
-        if not evidence:
-            continue  # без проверенной цитаты кандидата не берём
-        stage = str(raw.get("stage") or "unknown")
-        if stage not in {"research", "prototype", "pilot", "limited_sales", "scaled", "unknown"}:
-            stage = "unknown"
-        result.candidates.append(
-            Candidate(
-                name_ru=name,
-                name_orig=(raw.get("name_orig") or None),
-                mechanism=mechanism,
-                object_affected=raw.get("object_affected") or None,
-                context=raw.get("context") or None,
-                stage=stage,
-                organizations=[str(o) for o in (raw.get("organizations") or [])][:10],
-                event_date=raw.get("event_date") or None,
-                evidence=evidence,
-                source_url=doc.final_url,
-                document_sha256=doc.text_sha256,
-            )
-        )
-    if not result.candidates and not result.no_technology_reason:
-        result.no_technology_reason = str(data.get("no_technology_reason") or "кандидаты не прошли проверку цитат")
-    return result
+    return parse_extraction(doc, text, spans,
+        model=getattr(llm, "s", None) and llm.s.model_uri or "fixture",
+        input_tokens=tin, output_tokens=tout)
 
 
 # --- склейка ---------------------------------------------------------------
