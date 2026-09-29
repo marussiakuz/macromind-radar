@@ -1,33 +1,33 @@
-# HTTPS для публичного MVP. Сертификат Caddy получает сам, при первом запросе.
+# HTTPS и раздача всего с одного адреса. Сертификат Caddy получает сам, при первом запросе.
 #
 # RADAR_HOST — имя, по которому сервис открыт. Варианты:
-#   * свой домен, например radar.example.ru (надёжнее всего);
-#   * имя вида 203-0-113-7.sslip.io, если домена нет: оно разворачивается в этот же IP,
-#     и Let's Encrypt выдаёт на него сертификат.
+#   * свой домен, например techtrendsearcher.ru;
+#   * имя вида 203-0-113-7.sslip.io, если домена ещё нет или DNS не разошлись:
+#     оно разворачивается в этот же IP, и Let's Encrypt выдаёт на него сертификат.
+#
+# Один адрес на интерфейс и сервис выбран намеренно: при разных адресах браузер требует
+# CORS, а со страницы по https нельзя обратиться к сервису по http.
 {$RADAR_HOST} {
 	encode gzip
 
-	# Интерфейс на GitHub Pages обращается сюда из браузера, поэтому нужен CORS.
-	# Сервис уже отдаёт заголовки сам, но на предварительный запрос OPTIONS отвечаем
-	# здесь: иначе браузер не дойдёт до приложения.
-	@preflight method OPTIONS
-	handle @preflight {
-		header {
-			Access-Control-Allow-Origin "*"
-			Access-Control-Allow-Methods "GET, POST, OPTIONS"
-			Access-Control-Allow-Headers "Content-Type, X-Radar-Token"
-			Access-Control-Max-Age "86400"
+	# Сервис: запуск анализа, состояние задачи, лимиты, Swagger.
+	@service path /api/* /docs /docs/* /openapi.json /redoc /redoc/*
+	handle @service {
+		reverse_proxy radar:8000 {
+			# Живой прогон идёт 7–11 минут, и страница всё это время опрашивает состояние.
+			# Со значениями по умолчанию прокси обрывал бы соединение раньше сервиса.
+			transport http {
+				response_header_timeout 5m
+				read_timeout 25m
+			}
 		}
-		respond 204
 	}
 
-	reverse_proxy radar:8000 {
-		# Живой прогон идёт 7–11 минут, и страница ждёт ответа на опрос состояния.
-		# Со значениями по умолчанию прокси обрывал бы соединение раньше сервиса.
-		transport http {
-			response_header_timeout 5m
-			read_timeout 25m
-		}
+	# Всё остальное — собранный интерфейс аналитика.
+	handle {
+		root * /srv/ui
+		try_files {path} /index.html
+		file_server
 	}
 
 	log {
@@ -36,4 +36,9 @@
 			roll_keep 3
 		}
 	}
+}
+
+# www ведёт на основной адрес, чтобы ссылка работала в любом написании.
+www.{$RADAR_HOST} {
+	redir https://{$RADAR_HOST}{uri} permanent
 }

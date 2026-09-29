@@ -4,28 +4,33 @@ export type ClaimStatus = "supported" | "unsupported" | "hypothesis";
 
 export type Stage = "исследование" | "прототип" | "патенты" | "продукт";
 
-export type SignalKind = "ранний сигнал" | "хайп" | "на слуху";
+export type SignalKind = "ранний сигнал" | "хайп" | "на слуху" | "стадия не подтверждена";
 
 export type Trust = "высокий" | "средний" | "низкий";
 
 export interface Source {
   id: string;
   title: string;
+  /** Дата публикации документа. «—» когда установить не удалось. */
   date: string;
-  type: "статья" | "препринт" | "патент" | "отчёт" | "пресс-релиз";
+  /** Дата события из извлечения: другая величина, чем дата публикации, поэтому отдельно. */
+  eventDate?: string | null;
+  type: string;
   url: string;
   quote: string;
-  language: "ru" | "en";
+  language: string;
   trust: Trust;
-  summaryRu: string;
-  generated: boolean;
+  /** Может отсутствовать: у части источников пересказ не формировался. */
+  summaryRu?: string | null;
+  generated?: boolean | null;
 }
 
 export interface Claim {
+  /** null — признак выведен из замера, а не из цитаты источника. */
   label: string;
   text: string;
   status: ClaimStatus;
-  sourceId?: string;
+  sourceId?: string | null;
 }
 
 export interface Features {
@@ -40,12 +45,65 @@ export interface Features {
   novelty: number;
 }
 
+export interface Player {
+  /** Организация, названная в найденном источнике. */
+  name: string;
+  /** developer | deployer | researcher | funder | standard — что именно она делает. */
+  role: string;
+  /** Что она делает по тексту источника. */
+  what: string;
+  /** Дословная цитата: она обязана быть подстрокой найденного текста. */
+  quote: string;
+  url: string;
+}
+
+export interface DossierEvent {
+  date: string;
+  org: string;
+  what: string;
+  quote: string;
+  url: string;
+}
+
+export interface FundingRound {
+  org: string;
+  stage: string;
+  amount: string;
+  lead: string;
+  date: string;
+  quote: string;
+  url: string;
+}
+
 export interface Trend {
   id: string;
+  /** Канонический англоязычный термин из цитаты автора: по нему мерится зрелость. */
+  nameEn?: string | null;
+  /** Максимум шкалы баллов: показывается рядом со значением, чтобы балл не читался как процент. */
+  scoreMax?: number;
+  /** signal — фильтр уверен; review — требует проверки экспертом. */
+  tier?: "signal" | "review";
+  /** Человеческая формулировка: что именно проверить. */
+  verdict?: string;
+  /** Оценка по цитатам; не заменяет экспертную разметку. */
+  assessment?: {
+    domain?: "yes" | "no" | "uncertain";
+    stage?: "early" | "mature_hint" | "unknown";
+    domain_reason?: string;
+    delta?: string;
+    quote?: string;
+    quote_url?: string;
+    provenance?: string;
+    human_validated?: boolean;
+    version?: string;
+    proposed_stage?: string;
+    freshness_note?: string;
+    evidence_date?: string;
+  };
   name: string;
   definition: string;
   signal: number;
-  firstYear: number;
+  firstYear: number | null;
   series: number[];
   stage: Stage;
   kind: SignalKind;
@@ -54,10 +112,20 @@ export interface Trend {
   reasons: string[];
   claims: Claim[];
   sources: Source[];
+  /** Кто это делает: найдено вторым поиском по термину, не из первой статьи. */
+  players?: Player[];
+  /** Датированные события по позиции: хроника, как в таблице заказчика. */
+  chronology?: DossierEvent[];
+  /** Раунды со суммой и ведущим инвестором. */
+  rounds?: FundingRound[];
+  /** Домены, подтверждающие позицию: один домен — не подтверждение. */
+  independentDomains?: string[];
 }
 
 export interface Analysis {
   id: string;
+  /** Стоимость прогона в рублях: показывается в списке разборов. */
+  cost?: number | null;
   query: string;
   year: number;
   status: "completed" | "running" | "partial";
@@ -542,11 +610,11 @@ function fillTrend(base: (typeof extras)[number], index: number): Trend {
       logGrowth: 0.8 - index * 0.03,
       share: 0.0028 - index * 0.0001,
       shareGrowth: 0.6 - index * 0.02,
-      age: 2025 - base.firstYear,
+      age: base.firstYear ? 2025 - base.firstYear : null,
       orgs: 8,
       hhi: 0.2,
       coverage: 0.7,
-      novelty: Math.max(0, 1 - (2025 - base.firstYear) / 10),
+      novelty: base.firstYear ? Math.max(0, 1 - (2025 - base.firstYear) / 10) : 0,
     },
     reasons: [
       "Рост доли за три полных года",
@@ -617,6 +685,9 @@ const mockTrends: Trend[] = [
 // Настоящие результаты прогонов радара; макет остаётся запасным вариантом.
 export const allTrends: Trend[] = genTrends.length ? genTrends : mockTrends;
 export const isRealData = genTrends.length > 0;
+
+/** Запрос сохранённого прогона: без сервиса интерфейс обязан называть его, а не чужой. */
+export const savedQuery = genAnalyses[0]?.query || "Технологии в ИИ";
 
 export const searchStats = {
   candidates: genPoolSize || 186,
@@ -693,7 +764,7 @@ export function trendById(id: string) {
   return allTrends.find((item) => item.id === id);
 }
 
-export function sourceById(trend: Trend, id?: string) {
+export function sourceById(trend: Trend, id?: string | null) {
   return trend.sources.find((item) => item.id === id);
 }
 

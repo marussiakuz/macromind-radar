@@ -633,3 +633,41 @@ a.card h4 {
     break-inside: avoid;
   }
 }
+
+/* Сообщение демонстрационной выгрузки: показывается, когда сервис радара не запущен. */
+.notice {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  background: var(--card);
+  max-width: 640px;
+}
+
+.notice p {
+  font-size: 14px;
+  line-height: 20px;
+  margin: 0 0 12px;
+}
+
+.notice .row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.notice .hint {
+  margin: 12px 0 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+
+.notice code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--bg-2);
+}

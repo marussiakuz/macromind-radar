@@ -1,10 +1,16 @@
 # Белый список: по умолчанию не попадает ничего.
-# В корне лежат договоры, презентации и Pre-DD — публиковать их нельзя,
-# поэтому перечисляем то, что входит, а не то, что исключаем.
+# В корне лежат договоры, презентации, таблица заказчика и Pre-DD — публиковать их
+# нельзя, поэтому перечисляем то, что входит, а не то, что исключаем.
 /*
 !/.gitignore
 !/.env.example
 !/README.md
+!/DOCUMENTATION.md
+
+# Публикация статического интерфейса на GitHub Pages
+!/.github/
+/.github/*
+!/.github/workflows/
 
 # Конвейер радара
 !/hackathon/
@@ -12,6 +18,18 @@
 !/hackathon/radar/
 !/hackathon/*.md
 !/hackathon/.gitignore
+!/hackathon/requirements.txt
+# Развёртывание публичного MVP: образ, compose, HTTPS-прокси, сборщик посылки состояния
+!/hackathon/Dockerfile
+!/hackathon/docker-compose.yml
+!/hackathon/Caddyfile
+!/hackathon/deploy/
+# Посылка состояния собирается локально и содержит учёт расходов: не в репозиторий
+/hackathon/deploy/*.tar.gz
+# Настоящая выборка одного прогона: инструменты и тесты работают без сети и без оплаты
+!/hackathon/samples/
+# Опыты: датасет ранжирования, обучение реранкера, замеры покрытия, карточка модели
+!/hackathon/learning/
 
 # Интерфейс
 !/tech-trend-searcher/
@@ -32,11 +50,19 @@
 .env
 .env.*
 !.env.example
+*.key
+*.pem
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.ruff_cache/
 .venv/
 node_modules/
 dist/
 .DS_Store
 .git-standalone-backup/
+# Данные прогонов: 415 МБ сохранённых страниц. Для проверки достаточно hackathon/samples/
+radar-runs/
+# Учёт расходов: локальное состояние, не артефакт
+ledger.json
+ledger.lock

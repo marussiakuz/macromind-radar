@@ -50,6 +50,7 @@ export function Badge({
 }
 
 export function kindBadge(kind: SignalKind) {
+  if (kind === "стадия не подтверждена") return <Badge tone="warn">стадия не подтверждена</Badge>;
   if (kind === "хайп") return <Badge tone="bad">хайп</Badge>;
   if (kind === "на слуху") return <Badge tone="warn">на слуху</Badge>;
   return <Badge tone="ok">ранний сигнал</Badge>;
@@ -190,8 +191,14 @@ export function TrendLine({ trend, index }: { trend: Trend; index: number }) {
           </div>
         </div>
         <div>
-          <div className="score">{trend.signal}%</div>
-          <div className="tiny">уверенность модели</div>
+          {/* Сумма признаков, а не вероятность: калибровки вероятностей нет,
+              и подпись «уверенность 80 %» была бы выдуманной точностью. */}
+          <div className="score">{trend.signal}</div>
+          <div className="tiny">
+            баллов из {trend.scoreMax ?? 11}
+            <br />
+            {trend.tier === "signal" ? "признаки сходятся" : "требует проверки"}
+          </div>
         </div>
       </div>
     </Link>

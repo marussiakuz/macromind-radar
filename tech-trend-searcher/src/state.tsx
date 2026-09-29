@@ -6,8 +6,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { allTrends, type Trend } from "./data";
-import type { JobState } from "./api";
+import { allTrends, savedQuery, type Trend } from "./data";
+import type { JobState, RejectedItem } from "./api";
 
 type Theme = "light" | "dark";
 
@@ -34,6 +34,8 @@ interface AppState {
   job: JobState | null;
   setJob: (job: JobState | null) => void;
   liveTrends: Trend[];
+  /** Отказы текущего прогона; пусто — значит показываем сохранённые. */
+  liveRejected: RejectedItem[];
 }
 
 const Ctx = createContext<AppState | null>(null);
@@ -53,18 +55,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return saved === "dark" ? "dark" : "light";
   });
   const [signedIn, setSignedIn] = useState(() => localStorage.getItem("tts-auth") === "1");
-  const [query, setQuery] = useState(() => localStorage.getItem("tts-query") || "Технологии в ИИ");
+  const [query, setQuery] = useState(() => localStorage.getItem("tts-query") || savedQuery);
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [compareIds, setCompareIds] = useState<string[]>(() => readJson("tts-compare", []));
   const [shortlist, setShortlist] = useState<string[]>(() => readJson("tts-short", []));
   const [notes, setNotes] = useState<Record<string, string>>(() => readJson("tts-notes", {}));
   const [savedQueries, setSavedQueries] = useState<string[]>(() =>
-    readJson("tts-queries", ["Технологии в ИИ"])
+    readJson("tts-queries", [savedQuery])
   );
   // Результат живого прогона. Пока его нет, интерфейс показывает сохранённую выгрузку
   // и помечает это, чтобы никто не принял прошлый прогон за ответ на свой запрос.
   const [job, setJob] = useState<JobState | null>(null);
-  const liveTrends = job?.status === "completed" && job.trends?.length ? job.trends : allTrends;
+  const liveTrends = job?.status === "completed" ? job.trends ?? [] : allTrends;
+  const liveRejected = job?.status === "completed" ? job.rejected ?? [] : [];
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -126,6 +129,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       job,
       setJob,
       liveTrends,
+      liveRejected,
       comparedTrends: compareIds
         .map((id) => liveTrends.find((item) => item.id === id))
         .filter((item): item is Trend => Boolean(item)),
@@ -133,7 +137,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         .map((id) => liveTrends.find((item) => item.id === id))
         .filter((item): item is Trend => Boolean(item)),
     }),
-    [theme, signedIn, query, selectedTopics, compareIds, shortlist, notes, savedQueries, job, liveTrends]
+    [theme, signedIn, query, selectedTopics, compareIds, shortlist, notes, savedQueries, job, liveTrends, liveRejected]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

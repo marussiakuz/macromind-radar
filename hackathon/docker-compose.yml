@@ -35,6 +35,9 @@ services:
       - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Собранный интерфейс: тот же адрес, что и сервис, поэтому ни CORS, ни смешанного
+      # содержимого не возникает.
+      - ./ui:/srv/ui:ro
       - caddy-data:/data
       - caddy-config:/config
 

@@ -50,13 +50,22 @@ export function Compare() {
         <tbody>
           {rows.map((row) => {
             const nums = values.map((item) => item[row.key]);
-            const best = Math.max(...nums.map(row.pick));
+            // Возраст термина может быть неизвестен: сравниваем только измеренные.
+            const best = Math.max(...nums.filter((n): n is number => n != null).map(row.pick));
             return (
               <tr key={row.key}>
                 <td>{row.label}</td>
                 {nums.map((num, index) => (
-                  <td key={comparedTrends[index].id} className={row.pick(num) === best ? "win" : ""}>
-                    {row.key === "growth" || row.key === "hhi" ? num.toFixed(2) : num}
+                  <td
+                    key={comparedTrends[index].id}
+                    className={num != null && row.pick(num) === best ? "win" : ""}
+                  >
+                    {/* Неизмеренное показываем как «нет данных», а не как ноль. */}
+                    {num == null
+                      ? "нет данных"
+                      : row.key === "growth" || row.key === "hhi"
+                        ? num.toFixed(2)
+                        : num}
                   </td>
                 ))}
               </tr>

@@ -49,11 +49,53 @@ export function Progress() {
       <p className="tiny">Прогресс задачи</p>
       <h1 style={{ marginTop: 8 }}>{job?.query ?? query}</h1>
       <p className="muted" style={{ marginTop: 12 }}>
-        {job?.cached
-          ? "Найден сохранённый прогон по этому запросу: результат отдаётся без новых расходов."
+        {/* Три разных состояния, а не два. Прежняя надпись обещала «без новых расходов»
+            и для случая, когда из сохранённого брался только пул документов, а оценка и
+            поиск компаний считались заново: это 4–5 минут и платные вызовы модели. */}
+        {job?.cards_from_cache
+          ? "Показан сохранённый разбор этого прогона: ничего не пересчитывалось и не потрачено."
+          : job?.cached
+          ? "Найден сохранённый пул документов: поиск не повторяется, оценка и поиск компаний считаются заново, обычно 4–5 минут."
           : "Идёт живой прогон по открытым источникам. Обычно 5–12 минут."}
         {" "}Прошло {Math.floor(seconds / 60)} мин {seconds % 60} с.
       </p>
+
+      {/* Ответ привратника. Показывается до траты денег: на запросе «Edge» 14 страниц из 17
+          оказались про скачивание браузера, и без этого экрана конвейер пятнадцать минут
+          искал бы технологии в карточках товара. Решение остаётся за аналитиком. */}
+      {job?.status === "needs_query_fix" && job.gate && (
+        <section className="report-block" style={{ marginTop: 16 }}>
+          <h3>Запрос стоит уточнить</h3>
+          <p>{job.gate.message}</p>
+          {job.gate.senses.length > 1 && (
+            <table className="compare-table" style={{ marginTop: 12 }}>
+              <tbody>
+                {job.gate.senses.map((sense, i) => (
+                  <tr key={i}>
+                    <td>
+                      <strong>{Math.round(sense.share * 100)}% выдачи</strong>
+                      <div className="tiny">{sense.terms.join(", ")}</div>
+                    </td>
+                    <td className="tiny">{sense.titles.join(" · ")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {job.gate.suggestions.length > 0 && (
+            <p className="tiny" style={{ marginTop: 12 }}>
+              Попробуйте: {job.gate.suggestions.map((s) => `«${s}»`).join(", ")}
+            </p>
+          )}
+          <p className="tiny" style={{ marginTop: 12 }}>
+            Проверено {job.gate.hits} страниц с {job.gate.hosts} сайтов. Полный прогон стоит
+            около 90 ₽ и пятнадцать минут, поэтому мы спросили заранее.
+          </p>
+          <div className="actions" style={{ marginTop: 16 }}>
+            <Button to="/">Изменить запрос</Button>
+          </div>
+        </section>
+      )}
 
       {!job && (
         <p className="err" style={{ marginTop: 16 }}>
@@ -94,7 +136,7 @@ export function Progress() {
           <p className="tiny" style={{ marginTop: 8 }}>
             {job.funnel.queries} запросов → {job.funnel.hits} позиций выдачи →{" "}
             {job.funnel.documents} документов → {job.funnel.candidates} кандидатов →{" "}
-            {job.funnel.top} прошли окно зрелости. Стоимость {job.funnel.cost} ₽.
+            {job.funnel.top} карточек в выдаче. Поисковый этап: {job.funnel.cost ?? "—"} ₽.
           </p>
         </article>
       )}

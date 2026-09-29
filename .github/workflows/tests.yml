@@ -1,0 +1,44 @@
+# Тесты конвейера: 92 проверки, без сети и без платных вызовов.
+#
+# Три проверки склейки требуют локальной модели эмбеддингов — без неё склейка
+# намеренно не делается вовсе, поэтому модель скачивается заранее и кешируется.
+name: tests
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hackathon
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: hackathon/requirements.txt
+
+      # Процессорная сборка torch: полное колесо тянет драйверы CUDA, которые здесь не нужны.
+      - run: pip install torch==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+      - run: pip install -r requirements.txt
+
+      - name: Кеш модели эмбеддингов
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: e5-small-v1
+
+      - name: Скачать модель, если её нет в кеше
+        run: |
+          python - <<'PY'
+          from sentence_transformers import SentenceTransformer
+          SentenceTransformer("intfloat/multilingual-e5-small")
+          PY
+
+      - run: python -m pytest radar/tests -q

@@ -8,16 +8,49 @@
  */
 import type { Trend } from "./data";
 
-const BASE = import.meta.env.VITE_RADAR_API ?? "http://127.0.0.1:8000";
+// Пустая строка возможна: сборка на GitHub Pages подставляет переменную репозитория,
+// и пока адрес сервиса не задан, остаётся локальный — тогда страница честно скажет,
+// что сервис недоступен, вместо запроса в пустоту.
+const BASE = import.meta.env.VITE_RADAR_API || "http://127.0.0.1:8000";
+
+export interface RejectedItem {
+  name: string;
+  term: string;
+  reason: string;
+  score: number;
+  notes: string[];
+  source_url: string;
+}
+
+export interface GateVerdict {
+  /** ok | wrong_sense | ambiguous | no_material */
+  status: string;
+  message: string;
+  direction: string;
+  suggestions: string[];
+  senses: { terms: string[]; titles: string[]; share: number }[];
+  hits: number;
+  hosts: number;
+}
 
 export interface JobState {
   id: string;
   query: string;
-  status: "running" | "completed" | "failed";
+  status: "running" | "completed" | "failed" | "needs_query_fix";
   stage: string;
   cached: boolean;
+  /** Разбор запроса до траты денег: пригоден ли он вообще. */
+  gate?: GateVerdict;
+  /** Разбор показан из сохранённого: повтор не пересчитывался и ничего не стоил. */
+  cards_from_cache?: boolean;
   run_id?: string;
   trends?: Trend[];
+  /** Отбракованные позиции с причиной: заказчик назвал такой список плюсом. */
+  rejected?: RejectedItem[];
+  rejected_total?: number;
+  direction?: string;
+  confident?: number;
+  needs_review?: number;
   funnel?: Record<string, number>;
   plan?: string[];
   error?: string;
@@ -25,22 +58,58 @@ export interface JobState {
 
 export async function apiAvailable(): Promise<boolean> {
   try {
-    const res = await fetch(`${BASE}/api/health`, { signal: AbortSignal.timeout(1500) });
+    const res = await fetch(`${BASE}/api/health`, { signal: AbortSignal.timeout(4000) });
     return res.ok;
   } catch {
     return false;
   }
 }
 
-export async function startSearch(query: string): Promise<string> {
+/** `force` — аналитик увидел замечание привратника и всё равно решил запускать. */
+export async function startSearch(query: string, force = false): Promise<string> {
   const res = await fetch(`${BASE}/api/search`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query, plan: "pains" }),
+    body: JSON.stringify({ query, plan: "tree", force }),
   });
-  if (!res.ok) throw new Error(`сервис ответил ${res.status}`);
+  if (!res.ok) {
+    // Публичный сервис отказывает по делу: исчерпана квота (429) или бюджета не хватает
+    // на полный прогон (402). Причина приходит в `detail`, и аналитик обязан её увидеть —
+    // «сервис ответил 429» не объясняет ничего.
+    let reason = `сервис ответил ${res.status}`;
+    try {
+      const body = await res.json();
+      if (typeof body?.detail === "string" && body.detail) reason = body.detail;
+    } catch {
+      /* тело без JSON: остаётся код ответа */
+    }
+    throw new Error(reason);
+  }
   const data = await res.json();
   return data.job_id as string;
+}
+
+/** Остаток бюджета и квоты публичного сервиса: показывается аналитику до запуска. */
+export interface Limits {
+  budget: { known: boolean; search?: number; llm?: number; runs_left?: number };
+  quota: {
+    runs_today: number;
+    daily_limit: number;
+    ip_runs_today: number;
+    ip_daily_limit: number;
+  };
+  running: number;
+  token_required: boolean;
+}
+
+export async function fetchLimits(): Promise<Limits | null> {
+  try {
+    const res = await fetch(`${BASE}/api/limits`, { signal: AbortSignal.timeout(2500) });
+    if (!res.ok) return null;
+    return (await res.json()) as Limits;
+  } catch {
+    return null;
+  }
 }
 
 export async function pollSearch(jobId: string): Promise<JobState> {

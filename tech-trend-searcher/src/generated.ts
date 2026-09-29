@@ -1,566 +1,1807 @@
 // Файл создан автоматически: python -m radar.export_ui
 // Источник — сохранённые прогоны радара. Руками не править: перезапишется.
-// Выгружено 2026-09-27T10:12:50+00:00
+// Выгружено 2026-09-29T08:14:51+00:00
 import type { Trend, Analysis } from "./data";
 
 export const genTrends: Trend[] = [
  {
   "id": "t0",
-  "name": "частное облако Azure Local с поддержкой отключенных режимов и локальных GPU",
-  "definition": "развертывание валидированного стека Azure на локальной инфраструктуре клиента с поддержкой внешних SAN-хранилищ, локального управления кластерами и установки серверных GPU для инференса",
-  "signal": 80,
-  "firstYear": 2025,
-  "series": [
-   0,
-   0,
-   0,
-   2,
-   5
-  ],
-  "stage": "продукт",
+  "name": "конфиденциальные вычисления для инференса больших языковых моделей с аппаратной изоляцией CPU и GPU",
+  "nameEn": "confidential inference",
+  "definition": "обеспечение изоляции выполнения и криптографической аттестации среды исполнения с использованием Intel TDX для процессора и NVIDIA GPU attestation для графического ускорителя, с привязкой доказательств выполнения к ответу модели",
+  "signal": 2.5,
+  "scoreMax": 11.0,
+  "firstYear": null,
+  "series": [],
+  "stage": "прототип",
   "kind": "ранний сигнал",
+  "assessment": {
+   "domain": "yes",
+   "stage": "early",
+   "domain_reason": "Конфиденциальные вычисления на GPU/CPU для LLM — специфичная задача периферийной/серверной защиты данных.",
+   "delta": "Новый механизм: криптографическая привязка доказательства выполнения (attestation) к ответу модели, что решает проблему верификации GPU в TEE.",
+   "quote": "ORGN enforces confidential inference per request using Intel TDX for CPU isolation, NVIDIA GPU attestation for model execution, and cryptographic binding of execution proof to responses.",
+   "quote_url": "https://www.orgn.com/blog/trusted-execution-environment",
+   "provenance": "agent_review",
+   "human_validated": false,
+   "version": "evidence-priority/1",
+   "proposed_stage": "early",
+   "evidence_date": "2026-07-06"
+  },
   "bank": "Требует экспертной проверки",
   "features": {
-   "nT": 7,
-   "logGrowth": 0.71,
+   "nT": 0,
+   "logGrowth": 0.0,
    "share": 0.0,
    "shareGrowth": 0.0,
-   "age": 20.4,
-   "orgs": 2,
+   "age": null,
+   "orgs": 1,
    "hhi": 0.0,
-   "coverage": 1,
-   "novelty": 10.0
+   "coverage": 2,
+   "novelty": 2.5
   },
   "reasons": [
-   "термин молодой: 2025-01-14",
-   "5 из 7 упоминаний за последний год",
-   "тихо: всего 7 упоминаний",
-   "два игрока"
+   "стадия prototype",
+   "громкость не измерена: библиометрическое обогащение отключено",
+   "сомнение в принадлежности области: Защита данных, не edge вычисления",
+   "Оценка по цитатам: early. Новый механизм: криптографическая привязка доказательства выполнения (attestation) к ответу модели, что решает проблему верификации GPU в TEE.",
+   "3 независимых реализатора найдено вторым поиском"
   ],
+  "players": [
+   {
+    "name": "NEAR AI",
+    "role": "developer",
+    "what": "built Confidential GPU Marketplace for confidential inference",
+    "quote": "NEAR AI’s Confidential GPU Marketplace is the first TEE-secured compute network designed for enterprise and government AI workloads",
+    "url": "https://near.ai/blog/near-ai-launches-ironclaw-confidential-gpu-marketplace-and-multimodal-confidential-inference"
+   },
+   {
+    "name": "AWS",
+    "role": "developer",
+    "what": "offers Nitro Enclaves for confidential computing",
+    "quote": "AWS Nitro Enclaves + Azure Confidential AI + Google Cloud Confidential Computing GA at scale.",
+    "url": "https://canaryiq.com/intelligence/computing/confidential-ai/"
+   },
+   {
+    "name": "Google Cloud",
+    "role": "developer",
+    "what": "offers Google Cloud Confidential Computing for inference",
+    "quote": "AWS Nitro Enclaves + Azure Confidential AI + Google Cloud Confidential Computing GA at scale.",
+    "url": "https://canaryiq.com/intelligence/computing/confidential-ai/"
+   },
+   {
+    "name": "ORGN",
+    "role": "mentioned",
+    "what": "названа в источнике этой позиции",
+    "quote": "",
+    "url": "https://www.orgn.com/blog/trusted-execution-environment"
+   }
+  ],
+  "chronology": [
+   {
+    "date": "2026-08",
+    "org": "open-inference providers",
+    "what": "at least six publicly describe confidential inference",
+    "quote": "As of August 2026, at least six open-inference providers publicly describe some form of it.",
+    "url": "https://www.deai.org/news/confidential-ai-inference-tee"
+   }
+  ],
+  "rounds": [],
+  "independentDomains": [
+   "deai.org",
+   "orgn.com"
+  ],
+  "tier": "review",
+  "verdict": "зрелость не измерена",
   "claims": [
    {
     "label": "Механизм",
-    "text": "развертывание валидированного стека Azure на локальной инфраструктуре клиента с поддержкой внешних SAN-хранилищ, локального управления кластерами и установки серверных GPU для инференса",
+    "text": "обеспечение изоляции выполнения и криптографической аттестации среды исполнения с использованием Intel TDX для процессора и NVIDIA GPU attestation для графического ускорителя, с привязкой доказательств выполнения к ответу модели",
     "status": "supported",
     "sourceId": "s0-0"
    },
    {
     "label": "Признак ранней стадии",
-    "text": "термин молодой: 2025-01-14",
-    "status": "supported",
-    "sourceId": "s0-0"
+    "text": "стадия prototype",
+    "status": "hypothesis",
+    "sourceId": null
    },
    {
     "label": "Признак ранней стадии",
-    "text": "5 из 7 упоминаний за последний год",
-    "status": "supported",
-    "sourceId": "s0-0"
+    "text": "громкость не измерена: библиометрическое обогащение отключено",
+    "status": "hypothesis",
+    "sourceId": null
    },
    {
     "label": "Признак ранней стадии",
-    "text": "тихо: всего 7 упоминаний",
-    "status": "supported",
-    "sourceId": "s0-0"
+    "text": "сомнение в принадлежности области: Защита данных, не edge вычисления",
+    "status": "hypothesis",
+    "sourceId": null
    },
    {
     "label": "Признак ранней стадии",
-    "text": "два игрока",
-    "status": "supported",
-    "sourceId": "s0-0"
+    "text": "Оценка по цитатам: early. Новый механизм: криптографическая привязка доказательства выполнения (attestation) к ответу модели, что решает проблему верификации GPU в TEE.",
+    "status": "hypothesis",
+    "sourceId": null
    }
   ],
   "sources": [
    {
     "id": "s0-0",
-    "title": "windowsforum.com",
-    "date": "2025-01-14",
+    "title": "orgn.com",
+    "date": "2026-07-06",
+    "eventDate": "—",
     "type": "статья",
-    "url": "https://windowsforum.com/news/microsoft-sovereign-cloud-in-region-ai-local-azure-and-partner-governance.388034/",
-    "quote": "Azure Local’s move from 16‑server clusters to “hundreds of servers” is a game‑changer for organizations with substantial on‑prem workloads.",
+    "url": "https://www.orgn.com/blog/trusted-execution-environment",
+    "quote": "ORGN enforces confidential inference per request using Intel TDX for CPU isolation, NVIDIA GPU attestation for model execution, and cryptographic binding of execution proof to responses.",
     "language": "en",
     "trust": "низкий",
-    "summaryRu": "развертывание валидированного стека Azure на локальной инфраструктуре клиента с поддержкой внешних SAN-хранилищ, локального управления кластерами и установки серверных GPU для инференса",
+    "summaryRu": "обеспечение изоляции выполнения и криптографической аттестации среды исполнения с использованием Intel TDX для процессора и NVIDIA GPU attestation для графического ускорителя, с привязкой доказательст",
+    "generated": false
+   },
+   {
+    "id": "s0-1",
+    "title": "orgn.com",
+    "date": "2026-07-06",
+    "eventDate": "—",
+    "type": "статья",
+    "url": "https://www.orgn.com/blog/trusted-execution-environment",
+    "quote": "Large language model inference breaks traditional TEE assumptions because execution spans CPUs and GPUs, and CPU-only isolation leaves GPU execution unverified.",
+    "language": "en",
+    "trust": "низкий",
+    "summaryRu": "обеспечение изоляции выполнения и криптографической аттестации среды исполнения с использованием Intel TDX для процессора и NVIDIA GPU attestation для графического ускорителя, с привязкой доказательст",
     "generated": false
    }
   ]
  },
  {
   "id": "t1",
-  "name": "локальный запуск ИИ-моделей без облачной зависимости",
-  "definition": "запуск ИИ-моделей на локальном оборудовании с полным контролем над данными, вычислениями и обновлениями",
-  "signal": 76,
-  "firstYear": 2025,
-  "series": [
-   0,
-   0,
-   0,
-   3,
-   2
-  ],
-  "stage": "продукт",
+  "name": "встроенная коррекция ошибок Хэмминга в памяти с использованием интегрированной XOR-логики",
+  "nameEn": "In-memory Hamming error correction",
+  "definition": "реализация коррекции ошибок Хэмминга непосредственно в памяти с помощью интегрированной XOR-логики для устранения необходимости во внешней ECC",
+  "signal": 0.0,
+  "scoreMax": 11.0,
+  "firstYear": null,
+  "series": [],
+  "stage": "исследование",
   "kind": "ранний сигнал",
+  "assessment": {
+   "domain": "yes",
+   "stage": "early",
+   "domain_reason": "Встроенная коррекция ошибок в памяти (CiM) относится к периферийным вычислениям.",
+   "delta": "Интеграция логики ECC непосредственно в ячейки SRAM для устранения внешней памяти, специфично для аналоговых MAC.",
+   "quote": "In-memory Hamming error correction is implemented directly using integrated XOR circuitry. This technique eliminates off-chip ECC with >99% error correction and >98% MAC accuracy.",
+   "quote_url": "https://doi.org/10.3390/electronics14132719",
+   "provenance": "agent_review",
+   "human_validated": false,
+   "version": "evidence-priority/1",
+   "proposed_stage": "early",
+   "evidence_date": "2025-07-05"
+  },
   "bank": "Требует экспертной проверки",
   "features": {
-   "nT": 5,
-   "logGrowth": 0.4,
+   "nT": 0,
+   "logGrowth": 0.0,
    "share": 0.0,
    "shareGrowth": 0.0,
-   "age": 16.3,
-   "orgs": 3,
+   "age": null,
+   "orgs": 0,
    "hhi": 0.0,
-   "coverage": 2,
-   "novelty": 9.5
+   "coverage": 1,
+   "novelty": 0.0
   },
   "reasons": [
-   "термин молодой: 2025-05-19",
-   "свежих упоминаний 40%",
-   "тихо: всего 5 упоминаний",
-   "3 независимых игроков"
+   "игроки в источнике не названы",
+   "датированное событие 2025-07-05",
+   "громкость не измерена: библиометрическое обогащение отключено",
+   "сомнение в принадлежности области: надежность памяти, не edge AI",
+   "Оценка по цитатам: early. Интеграция логики ECC непосредственно в ячейки SRAM для устранения внешней памяти, специфично для аналоговых MAC.",
+   "все доказательства с одного домена — независимого подтверждения нет"
   ],
+  "players": [],
+  "chronology": [],
+  "rounds": [],
+  "independentDomains": [
+   "doi.org"
+  ],
+  "tier": "review",
+  "verdict": "зрелость не измерена",
   "claims": [
    {
     "label": "Механизм",
-    "text": "запуск ИИ-моделей на локальном оборудовании с полным контролем над данными, вычислениями и обновлениями",
+    "text": "реализация коррекции ошибок Хэмминга непосредственно в памяти с помощью интегрированной XOR-логики для устранения необходимости во внешней ECC",
     "status": "supported",
     "sourceId": "s1-0"
    },
    {
     "label": "Признак ранней стадии",
-    "text": "термин молодой: 2025-05-19",
-    "status": "supported",
-    "sourceId": "s1-0"
+    "text": "игроки в источнике не названы",
+    "status": "hypothesis",
+    "sourceId": null
    },
    {
     "label": "Признак ранней стадии",
-    "text": "свежих упоминаний 40%",
-    "status": "supported",
-    "sourceId": "s1-0"
+    "text": "датированное событие 2025-07-05",
+    "status": "hypothesis",
+    "sourceId": null
    },
    {
     "label": "Признак ранней стадии",
-    "text": "тихо: всего 5 упоминаний",
-    "status": "supported",
-    "sourceId": "s1-0"
+    "text": "громкость не измерена: библиометрическое обогащение отключено",
+    "status": "hypothesis",
+    "sourceId": null
    },
    {
     "label": "Признак ранней стадии",
-    "text": "3 независимых игроков",
-    "status": "supported",
-    "sourceId": "s1-0"
+    "text": "сомнение в принадлежности области: надежность памяти, не edge AI",
+    "status": "hypothesis",
+    "sourceId": null
    }
   ],
   "sources": [
    {
     "id": "s1-0",
-    "title": "ertas.ai",
-    "date": "2025-05-19",
+    "title": "doi.org",
+    "date": "2025-07-05",
+    "eventDate": "—",
     "type": "статья",
-    "url": "https://www.ertas.ai/blog/sovereign-ai-enterprise-guide",
-    "quote": "In February 2026, Microsoft launched Foundry Local at general availability — a framework for running AI models entirely on local hardware with no cloud dependency at runtime.",
+    "url": "https://doi.org/10.3390/electronics14132719",
+    "quote": "In-memory Hamming error correction is implemented directly using integrated XOR circuitry. This technique eliminates off-chip ECC with >99% error correction and >98% MAC accuracy.",
     "language": "en",
     "trust": "низкий",
-    "summaryRu": "запуск ИИ-моделей на локальном оборудовании с полным контролем над данными, вычислениями и обновлениями",
-    "generated": false
-   },
-   {
-    "id": "s1-1",
-    "title": "ertas.ai",
-    "date": "2025-05-19",
-    "type": "статья",
-    "url": "https://www.ertas.ai/blog/sovereign-ai-enterprise-guide",
-    "quote": "Telenor, the Norwegian telecommunications company, partnered with Red Hat to build a sovereign AI factory in Norway running on NVIDIA infrastructure.",
-    "language": "en",
-    "trust": "низкий",
-    "summaryRu": "запуск ИИ-моделей на локальном оборудовании с полным контролем над данными, вычислениями и обновлениями",
+    "summaryRu": "реализация коррекции ошибок Хэмминга непосредственно в памяти с помощью интегрированной XOR-логики для устранения необходимости во внешней ECC",
     "generated": false
    }
   ]
  },
  {
   "id": "t2",
-  "name": "аппаратно-закрепленная идентификация агентов с верифицируемым происхождением",
-  "definition": "привязка уникального идентификатора и кошелька агента к аппаратному обеспечению с регистрацией в блокчейне для обеспечения проверяемого происхождения",
-  "signal": 68,
-  "firstYear": 2025,
-  "series": [
-   0,
-   0,
-   0,
-   5,
-   56
-  ],
-  "stage": "прототип",
-  "kind": "ранний сигнал",
+  "name": "аллокация виртуальных машин в распределенных узлах периферийных облаков на основе аукциона",
+  "nameEn": "VM resource allocation",
+  "definition": "моделирование задачи распределения ресурсов как задачи взвешенного двудольного паросочетания с ограничениями 0-1 рюкзака и применение жадного аппроксимационного алгоритма для определения победителей аукциона с обеспечением свойств правдивости и индивидуальной рациональности",
+  "signal": 3.0,
+  "scoreMax": 11.0,
+  "firstYear": null,
+  "series": [],
+  "stage": "исследование",
+  "kind": "стадия не подтверждена",
+  "assessment": {
+   "domain": "yes",
+   "stage": "unknown",
+   "domain_reason": "Аллокатор ресурсов для периферийных облаков (edge cloud)",
+   "delta": "Механизм аукциона на основе паросочетания для edge-ресурсов, а не стандартная оркестрация",
+   "quote": "we model the VM resource allocation problem as an n-to-one weighted bipartite graph matching problem with 0-1 knapsack constraints. Since this problem is NP-hard, we design a greedy approximation algorithm to determine the winners of the auction",
+   "quote_url": "http://staff.ustc.edu.cn/~xiaomj/papers/2021%20TSC%20GuojuGao.pdf",
+   "provenance": "agent_review",
+   "human_validated": false,
+   "version": "evidence-priority/1",
+   "proposed_stage": "early",
+   "freshness_note": "нет датированного подтверждения раннего проявления за последние 24 месяца"
+  },
   "bank": "Требует экспертной проверки",
   "features": {
-   "nT": 61,
-   "logGrowth": 0.92,
+   "nT": 0,
+   "logGrowth": 0.0,
    "share": 0.0,
    "shareGrowth": 0.0,
-   "age": 18.8,
-   "orgs": 1,
+   "age": null,
+   "orgs": 3,
    "hhi": 0.0,
    "coverage": 1,
-   "novelty": 8.5
+   "novelty": 3.0
   },
   "reasons": [
-   "термин молодой: 2025-03-03",
-   "56 из 61 упоминаний за последний год",
-   "стадия prototype"
+   "названы 3 организации",
+   "3 независимых игроков",
+   "громкость не измерена: библиометрическое обогащение отключено",
+   "Оценка по цитатам: unknown. Механизм аукциона на основе паросочетания для edge-ресурсов, а не стандартная оркестрация",
+   "все доказательства с одного домена — независимого подтверждения нет"
   ],
+  "players": [
+   {
+    "name": "University of Science & Technology of China",
+    "role": "mentioned",
+    "what": "названа в источнике этой позиции",
+    "quote": "",
+    "url": "http://staff.ustc.edu.cn/~xiaomj/papers/2021%20TSC%20GuojuGao.pdf"
+   },
+   {
+    "name": "Soochow University",
+    "role": "mentioned",
+    "what": "названа в источнике этой позиции",
+    "quote": "",
+    "url": "http://staff.ustc.edu.cn/~xiaomj/papers/2021%20TSC%20GuojuGao.pdf"
+   },
+   {
+    "name": "Temple University",
+    "role": "mentioned",
+    "what": "названа в источнике этой позиции",
+    "quote": "",
+    "url": "http://staff.ustc.edu.cn/~xiaomj/papers/2021%20TSC%20GuojuGao.pdf"
+   }
+  ],
+  "chronology": [],
+  "rounds": [],
+  "independentDomains": [
+   "edu.cn"
+  ],
+  "tier": "review",
+  "verdict": "ранняя стадия категории не подтверждена источниками",
   "claims": [
    {
     "label": "Механизм",
-    "text": "привязка уникального идентификатора и кошелька агента к аппаратному обеспечению с регистрацией в блокчейне для обеспечения проверяемого происхождения",
+    "text": "моделирование задачи распределения ресурсов как задачи взвешенного двудольного паросочетания с ограничениями 0-1 рюкзака и применение жадного аппроксимационного алгоритма для определения победителей аукциона с обеспечением свойств правдивости и индивидуальной рациональности",
     "status": "supported",
     "sourceId": "s2-0"
    },
    {
     "label": "Признак ранней стадии",
-    "text": "термин молодой: 2025-03-03",
-    "status": "supported",
-    "sourceId": "s2-0"
+    "text": "названы 3 организации",
+    "status": "hypothesis",
+    "sourceId": null
    },
    {
     "label": "Признак ранней стадии",
-    "text": "56 из 61 упоминаний за последний год",
-    "status": "supported",
-    "sourceId": "s2-0"
+    "text": "3 независимых игроков",
+    "status": "hypothesis",
+    "sourceId": null
    },
    {
     "label": "Признак ранней стадии",
-    "text": "стадия prototype",
-    "status": "supported",
-    "sourceId": "s2-0"
+    "text": "громкость не измерена: библиометрическое обогащение отключено",
+    "status": "hypothesis",
+    "sourceId": null
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "Оценка по цитатам: unknown. Механизм аукциона на основе паросочетания для edge-ресурсов, а не стандартная оркестрация",
+    "status": "hypothesis",
+    "sourceId": null
    }
   ],
   "sources": [
    {
     "id": "s2-0",
-    "title": "ledger.com",
-    "date": "2025-03-03",
+    "title": "staff.ustc.edu.cn",
+    "date": "—",
+    "eventDate": "—",
     "type": "статья",
-    "url": "https://www.ledger.com/blog-2026-ai-security-roadmap",
-    "quote": "Agent Identity: Hardware-anchored identity for your agents. Instead of a spoofable software string, your agent gets a real identity and wallet anchored to Ledger hardware and registered on-chain. This provides verifiable provenance for every agent in your fleet.",
+    "url": "http://staff.ustc.edu.cn/~xiaomj/papers/2021%20TSC%20GuojuGao.pdf",
+    "quote": "we model the VM resource allocation problem as an n-to-one weighted bipartite graph matching problem with 0-1 knapsack constraints. Since this problem is NP-hard, we design a greedy approximation algorithm to determine the winners of the auction",
     "language": "en",
     "trust": "низкий",
-    "summaryRu": "привязка уникального идентификатора и кошелька агента к аппаратному обеспечению с регистрацией в блокчейне для обеспечения проверяемого происхождения",
+    "summaryRu": "моделирование задачи распределения ресурсов как задачи взвешенного двудольного паросочетания с ограничениями 0-1 рюкзака и применение жадного аппроксимационного алгоритма для определения победителей а",
     "generated": false
    }
   ]
  },
  {
   "id": "t3",
-  "name": "защита больших языковых моделей от вредоносных промптов и утечек данных",
-  "definition": "фильтрация вредоносных промптов, модерация контента, шифрование запросов и ответов, валидация входных данных",
-  "signal": 68,
-  "firstYear": 2024,
-  "series": [
-   0,
-   0,
-   0,
-   5,
-   44
-  ],
-  "stage": "продукт",
-  "kind": "ранний сигнал",
+  "name": "нейроморфные вычислительные системы на базе кремниевой микроэлектроники",
+  "nameEn": "neuromorphic AI systems",
+  "definition": "имитация принципов организации и функционирования биологического мозга (параллелизм, асинхронность, импульсная природа передачи информации, обучение на устройстве, аналоговые вычисления и вычисления в памяти) для преодоления ограничений архитектуры фон Неймана",
+  "signal": 3.0,
+  "scoreMax": 11.0,
+  "firstYear": null,
+  "series": [],
+  "stage": "исследование",
+  "kind": "стадия не подтверждена",
+  "assessment": {
+   "domain": "yes",
+   "stage": "unknown",
+   "domain_reason": "Нейроморфные системы — периферийный ИИ на уровне архитектуры",
+   "delta": "Обзор существующих проектов, нет указания на новый механизм или раннюю стадию",
+   "quote": "we present an overview of currently available neuromorphic AI projects in which these limitations are overcome by bringing some brain features into the functioning and organization of computing systems",
+   "quote_url": "https://www.frontiersin.org/journals/neuroscience/articles/10.3389/fnins.2022.959626/full",
+   "provenance": "agent_review",
+   "human_validated": false,
+   "version": "evidence-priority/1"
+  },
   "bank": "Требует экспертной проверки",
   "features": {
-   "nT": 49,
-   "logGrowth": 0.9,
+   "nT": 0,
+   "logGrowth": 0.0,
    "share": 0.0,
    "shareGrowth": 0.0,
-   "age": 30.8,
-   "orgs": 3,
+   "age": null,
+   "orgs": 2,
    "hhi": 0.0,
-   "coverage": 1,
-   "novelty": 8.5
+   "coverage": 2,
+   "novelty": 3.0
   },
   "reasons": [
-   "термину 30.8 мес.",
-   "44 из 49 упоминаний за последний год",
-   "3 независимых игроков"
+   "названы 2 организации",
+   "два игрока",
+   "громкость не измерена: библиометрическое обогащение отключено",
+   "сомнение в принадлежности области: альтернативная архитектура, не edge",
+   "Оценка по цитатам: unknown. Обзор существующих проектов, нет указания на новый механизм или раннюю стадию",
+   "два независимых реализатора найдено вторым поиском",
+   "отброшено 1 сделок без связи с этой позицией",
+   "сделки по теме найдены (1), но ни одна не привязана к названному реализатору с датой — см. карточку",
+   "хроника из 3 датированных событий, свежайшее 2026-06"
   ],
+  "players": [
+   {
+    "name": "NeuroPilot AI",
+    "role": "deployer",
+    "what": "deployed a neuromorphic vision system for autonomous drone navigation",
+    "quote": "NeuroPilot AI, a San Francisco-based startup, deployed a neuromorphic vision system for autonomous drone navigation in urban environments.",
+    "url": "https://johal.in/neuromorphic-computing-brain-inspired-chip-programming-with-python-and-nest-2026/"
+   },
+   {
+    "name": "Intel",
+    "role": "developer",
+    "what": "produced the Loihi 2 chip used in the neuromorphic system",
+    "quote": "The system used Intel's Loihi 2 chip programmed with NEST 2026 to process visual inputs in real-time",
+    "url": "https://johal.in/neuromorphic-computing-brain-inspired-chip-programming-with-python-and-nest-2026/"
+   },
+   {
+    "name": "Lomonosov Moscow State University",
+    "role": "mentioned",
+    "what": "названа в источнике этой позиции",
+    "quote": "",
+    "url": "https://www.frontiersin.org/journals/neuroscience/articles/10.3389/fnins.2022.959626/full"
+   },
+   {
+    "name": "Chuvash State University",
+    "role": "mentioned",
+    "what": "названа в источнике этой позиции",
+    "quote": "",
+    "url": "https://www.frontiersin.org/journals/neuroscience/articles/10.3389/fnins.2022.959626/full"
+   }
+  ],
+  "chronology": [
+   {
+    "date": "2026-06",
+    "org": "Prophesee",
+    "what": "Raised funds to commercialise Mantara drone-detection system",
+    "quote": "Prophesee raised €20 million in June 2026 to commercialise its Mantara drone-detection system",
+    "url": "https://abovea.tech/insights-strategies/neuromorphic-computing-startups/"
+   },
+   {
+    "date": "2026-03",
+    "org": "VectorWave",
+    "what": "Emerged from stealth with neuromorphic analog platform",
+    "quote": "VectorWave emerged from stealth in March 2026",
+    "url": "https://abovea.tech/insights-strategies/neuromorphic-computing-startups/"
+   },
+   {
+    "date": "2024",
+    "org": "Intel",
+    "what": "Launched Hala Point neuromorphic research system",
+    "quote": "Intel’s Hala Point neuromorphic research system, launched in 2024",
+    "url": "https://www.forbes.com/sites/sandycarter/2026/04/13/intel-ibm-and-mythworx-are-shrinking-neuromorphic-ai-to-20-watts/"
+   }
+  ],
+  "rounds": [
+   {
+    "org": "Neuromorphic Labs",
+    "stage": "seed",
+    "amount": "$5.1 million",
+    "lead": "Flying Fish",
+    "date": "",
+    "quote": "Neuromorphic Labs has raised $5.1 million in an oversubscribed seed funding round",
+    "url": "https://areeblog.com/neuromorphic-labs-raises-5-1m-to-secure-ai-systems-in-production/"
+   }
+  ],
+  "independentDomains": [
+   "abovea.tech",
+   "areeblog.com",
+   "forbes.com",
+   "frontiersin.org"
+  ],
+  "tier": "review",
+  "verdict": "ранняя стадия категории не подтверждена источниками",
   "claims": [
    {
     "label": "Механизм",
-    "text": "фильтрация вредоносных промптов, модерация контента, шифрование запросов и ответов, валидация входных данных",
+    "text": "имитация принципов организации и функционирования биологического мозга (параллелизм, асинхронность, импульсная природа передачи информации, обучение на устройстве, аналоговые вычисления и вычисления в памяти) для преодоления ограничений архитектуры фон Неймана",
     "status": "supported",
     "sourceId": "s3-0"
    },
    {
     "label": "Признак ранней стадии",
-    "text": "термину 30.8 мес.",
-    "status": "supported",
-    "sourceId": "s3-0"
+    "text": "названы 2 организации",
+    "status": "hypothesis",
+    "sourceId": null
    },
    {
     "label": "Признак ранней стадии",
-    "text": "44 из 49 упоминаний за последний год",
-    "status": "supported",
-    "sourceId": "s3-0"
+    "text": "два игрока",
+    "status": "hypothesis",
+    "sourceId": null
    },
    {
     "label": "Признак ранней стадии",
-    "text": "3 независимых игроков",
-    "status": "supported",
-    "sourceId": "s3-0"
+    "text": "громкость не измерена: библиометрическое обогащение отключено",
+    "status": "hypothesis",
+    "sourceId": null
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "сомнение в принадлежности области: альтернативная архитектура, не edge",
+    "status": "hypothesis",
+    "sourceId": null
    }
   ],
   "sources": [
    {
     "id": "s3-0",
-    "title": "forbes.ru",
-    "date": "2024-03-04",
+    "title": "frontiersin.org",
+    "date": "—",
+    "eventDate": "—",
     "type": "статья",
-    "url": "https://www.forbes.ru/svoi-biznes/552956-bezopasnyj-ii-regtech-i-cifrovoj-rubl-v-kakih-nisah-zapuskat-biznes-v-2026-godu",
-    "quote": "Cloudflare в 2024 году запустила Firewall for AI — набор решений для фильтрации вредоносных промптов и модерации контента.",
+    "url": "https://www.frontiersin.org/journals/neuroscience/articles/10.3389/fnins.2022.959626/full",
+    "quote": "we present an overview of currently available neuromorphic AI projects in which these limitations are overcome by bringing some brain features into the functioning and organization of computing systems",
     "language": "en",
-    "trust": "средний",
-    "summaryRu": "фильтрация вредоносных промптов, модерация контента, шифрование запросов и ответов, валидация входных данных",
+    "trust": "низкий",
+    "summaryRu": "имитация принципов организации и функционирования биологического мозга (параллелизм, асинхронность, импульсная природа передачи информации, обучение на устройстве, аналоговые вычисления и вычисления в",
+    "generated": false
+   },
+   {
+    "id": "s3-1",
+    "title": "frontiersin.org",
+    "date": "—",
+    "eventDate": "—",
+    "type": "статья",
+    "url": "https://www.frontiersin.org/journals/neuroscience/articles/10.3389/fnins.2022.959626/full",
+    "quote": "today this term encompasses various computing systems in which the principles of organization and working mechanisms are inspired by the biological brain",
+    "language": "en",
+    "trust": "низкий",
+    "summaryRu": "имитация принципов организации и функционирования биологического мозга (параллелизм, асинхронность, импульсная природа передачи информации, обучение на устройстве, аналоговые вычисления и вычисления в",
     "generated": false
    }
   ]
  },
  {
   "id": "t4",
-  "name": "фреймворк оценки рисков безопасности автономных ИИ-агентов",
-  "definition": "идентификация критических уязвимостей и векторов атак",
-  "signal": 64,
-  "firstYear": 2025,
-  "series": [
-   0,
-   0,
-   0,
-   0,
-   4
-  ],
+  "name": "нейроморфные системы на базе мемристорной элементной базы",
+  "nameEn": "neuromorphic applications",
+  "definition": "использование новых мемристорных элементов для реализации нейроморфных вычислений",
+  "signal": 1.5,
+  "scoreMax": 11.0,
+  "firstYear": null,
+  "series": [],
   "stage": "исследование",
-  "kind": "ранний сигнал",
+  "kind": "стадия не подтверждена",
+  "assessment": {
+   "domain": "yes",
+   "stage": "unknown",
+   "domain_reason": "Мемристоры для нейроморфных вычислений относятся к периферийному ИИ",
+   "delta": "Упоминание перспектив и примеров, но нет описания конкретного нового механизма или прототипа",
+   "quote": "we also discuss the prospects for using a new memristor element base. Examples of recent advances in the use of memristors in neuromorphic applications are also given.",
+   "quote_url": "https://www.frontiersin.org/journals/neuroscience/articles/10.3389/fnins.2022.959626/full",
+   "provenance": "agent_review",
+   "human_validated": false,
+   "version": "evidence-priority/1"
+  },
   "bank": "Требует экспертной проверки",
   "features": {
-   "nT": 4,
-   "logGrowth": 1.0,
+   "nT": 0,
+   "logGrowth": 0.0,
    "share": 0.0,
    "shareGrowth": 0.0,
-   "age": 9.6,
-   "orgs": 1,
+   "age": null,
+   "orgs": 0,
    "hhi": 0.0,
-   "coverage": 2,
-   "novelty": 8.0
+   "coverage": 1,
+   "novelty": 1.5
   },
   "reasons": [
-   "термин молодой: 2025-12-10",
-   "4 из 4 упоминаний за последний год",
-   "тихо: всего 4 упоминаний"
+   "игроки в источнике не названы",
+   "громкость не измерена: библиометрическое обогащение отключено",
+   "сомнение в принадлежности области: альтернативная архитектура, не edge",
+   "Оценка по цитатам: unknown. Упоминание перспектив и примеров, но нет описания конкретного нового механизма или прототипа",
+   "сделки по теме найдены (1), но ни одна не привязана к названному реализатору с датой — см. карточку",
+   "хроника из 4 датированных событий, свежайшее 2026-03-25"
   ],
+  "players": [
+   {
+    "name": "BytePlus",
+    "role": "developer",
+    "what": "предоставляет pre-trained neuromorphic models",
+    "quote": "Use BytePlus ModelArk’s pre-trained neuromorphic models for pilot projects",
+    "url": "https://www.byteplus.com/en/topic/564786?title=how-ai-neuromorphic-chips-are-revolutionizing-scalable-tech-tools"
+   }
+  ],
+  "chronology": [
+   {
+    "date": "2026-03-25",
+    "org": "VectorWave",
+    "what": "Emerges from stealth and begins partner engagements",
+    "quote": "VectorWave emerges from stealth and begins partner engagements.",
+    "url": "https://finance.yahoo.com/sectors/technology/articles/vectorwave-emerges-stealth-breakthrough-neuromorphic-140700710.html"
+   },
+   {
+    "date": "2026-03",
+    "org": "Weebit",
+    "what": "ReRAM selected for Republic of Korea government project",
+    "quote": "In March 2026, Weebit ReRAM was selected for use in a project funded by the Republic of Korea's government",
+    "url": "https://en.wikipedia.org/wiki/Weebit_Nano"
+   },
+   {
+    "date": "2026-03",
+    "org": "VectorWave",
+    "what": "Emerges from stealth with neuromorphic analog platform",
+    "quote": "VectorWave emerged from stealth in March 2026 with a neuromorphic analog platform",
+    "url": "https://abovea.tech/insights-strategies/neuromorphic-computing-startups/"
+   },
+   {
+    "date": "2024-07",
+    "org": "Innatera",
+    "what": "Raised $21 million in extended Series A funding",
+    "quote": "In July 2024, Innatera, a neuromorphic processor startup, raised $21 million in an extended Series A funding round.",
+    "url": "https://scoop.market.us/neuromorphic-computing-statistics/"
+   }
+  ],
+  "rounds": [
+   {
+    "org": "Innatera",
+    "stage": "Series A",
+    "amount": "$21 million",
+    "lead": "",
+    "date": "2024-07",
+    "quote": "In July 2024, Innatera, a neuromorphic processor startup, raised $21 million in an extended Series A funding round.",
+    "url": "https://scoop.market.us/neuromorphic-computing-statistics/"
+   }
+  ],
+  "independentDomains": [
+   "abovea.tech",
+   "frontiersin.org",
+   "market.us",
+   "wikipedia.org",
+   "yahoo.com"
+  ],
+  "tier": "review",
+  "verdict": "ранняя стадия категории не подтверждена источниками",
   "claims": [
    {
     "label": "Механизм",
-    "text": "идентификация критических уязвимостей и векторов атак",
+    "text": "использование новых мемристорных элементов для реализации нейроморфных вычислений",
     "status": "supported",
     "sourceId": "s4-0"
    },
    {
     "label": "Признак ранней стадии",
-    "text": "термин молодой: 2025-12-10",
-    "status": "supported",
-    "sourceId": "s4-0"
+    "text": "игроки в источнике не названы",
+    "status": "hypothesis",
+    "sourceId": null
    },
    {
     "label": "Признак ранней стадии",
-    "text": "4 из 4 упоминаний за последний год",
-    "status": "supported",
-    "sourceId": "s4-0"
+    "text": "громкость не измерена: библиометрическое обогащение отключено",
+    "status": "hypothesis",
+    "sourceId": null
    },
    {
     "label": "Признак ранней стадии",
-    "text": "тихо: всего 4 упоминаний",
-    "status": "supported",
-    "sourceId": "s4-0"
+    "text": "сомнение в принадлежности области: альтернативная архитектура, не edge",
+    "status": "hypothesis",
+    "sourceId": null
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "Оценка по цитатам: unknown. Упоминание перспектив и примеров, но нет описания конкретного нового механизма или прототипа",
+    "status": "hypothesis",
+    "sourceId": null
    }
   ],
   "sources": [
    {
     "id": "s4-0",
-    "title": "github.com",
-    "date": "2025-12-10",
+    "title": "frontiersin.org",
+    "date": "—",
+    "eventDate": "—",
     "type": "статья",
-    "url": "https://github.com/requie/LLMSecurityGuide",
-    "quote": "OWASP Top 10 for Agentic Applications 2026 (released December 10, 2025)",
+    "url": "https://www.frontiersin.org/journals/neuroscience/articles/10.3389/fnins.2022.959626/full",
+    "quote": "we also discuss the prospects for using a new memristor element base. Examples of recent advances in the use of memristors in neuromorphic applications are also given.",
     "language": "en",
-    "trust": "высокий",
-    "summaryRu": "идентификация критических уязвимостей и векторов атак",
-    "generated": false
-   },
-   {
-    "id": "s4-1",
-    "title": "github.com",
-    "date": "2025-12-10",
-    "type": "статья",
-    "url": "https://github.com/requie/LLMSecurityGuide",
-    "quote": "Released at Black Hat Europe on December 10, 2025, this globally peer-reviewed framework identifies critical security risks facing autonomous AI systems",
-    "language": "en",
-    "trust": "высокий",
-    "summaryRu": "идентификация критических уязвимостей и векторов атак",
+    "trust": "низкий",
+    "summaryRu": "использование новых мемристорных элементов для реализации нейроморфных вычислений",
     "generated": false
    }
   ]
  },
  {
   "id": "t5",
-  "name": "автоматизированное тестирование на проникновение (red teaming) ИИ-систем",
-  "definition": "симуляция реалистичных, граничных и враждебных взаимодействий для выявления отказов и рисков",
-  "signal": 56,
-  "firstYear": 2024,
-  "series": [
-   0,
-   0,
-   0,
-   2,
-   3
-  ],
-  "stage": "продукт",
-  "kind": "ранний сигнал",
+  "name": "вычислительная память на базе перенастраиваемой 8T SRAM для ускорения ИИ",
+  "nameEn": "in-memory computing",
+  "definition": "архитектура с массивом настраиваемой ёмкости для увеличения точности умножения и накопления (MAC) и логикой XNOR-накопления для бинарных и тернарных нейронных сетей",
+  "signal": 1.0,
+  "scoreMax": 11.0,
+  "firstYear": null,
+  "series": [],
+  "stage": "исследование",
+  "kind": "стадия не подтверждена",
+  "assessment": {
+   "domain": "yes",
+   "stage": "unknown",
+   "domain_reason": "Вычислительная память для Edge AI — инструмент проектирования/архитектуры",
+   "delta": "Описание функциональности (поддержка BNN/TNN), но нет признаков ранней стадии или нового механизма",
+   "quote": "By supporting binary and ternary neural networks (BNN/TNN) with XNOR-and-accumulate logic, a dual-mode inference engine further expands capabilities.",
+   "quote_url": "https://doi.org/10.3390/electronics14132719",
+   "provenance": "agent_review",
+   "human_validated": false,
+   "version": "evidence-priority/1"
+  },
   "bank": "Требует экспертной проверки",
   "features": {
-   "nT": 5,
-   "logGrowth": 0.6,
+   "nT": 0,
+   "logGrowth": 0.0,
    "share": 0.0,
    "shareGrowth": 0.0,
-   "age": 27.5,
-   "orgs": 2,
+   "age": null,
+   "orgs": 0,
    "hhi": 0.0,
-   "coverage": 2,
-   "novelty": 7.0
+   "coverage": 1,
+   "novelty": 1.0
   },
   "reasons": [
-   "термину 27.5 мес.",
-   "свежих упоминаний 60%",
-   "тихо: всего 5 упоминаний",
-   "два игрока"
+   "игроки в источнике не названы",
+   "датированное событие 2025-07-05",
+   "громкость не измерена: библиометрическое обогащение отключено",
+   "сомнение в принадлежности области: аппаратная архитектура памяти, не edge",
+   "Оценка по цитатам: unknown. Описание функциональности (поддержка BNN/TNN), но нет признаков ранней стадии или нового механизма",
+   "отброшено 1 сделок без связи с этой позицией",
+   "сделки по теме найдены (2), но ни одна не привязана к названному реализатору с датой — см. карточку"
   ],
+  "players": [],
+  "chronology": [],
+  "rounds": [
+   {
+    "org": "Hazelcast",
+    "stage": "Series A",
+    "amount": "$2.5 million",
+    "lead": "",
+    "date": "",
+    "quote": "Hazelcast, provider of open source in-memory data grid software, today announced the completion of a $2.5 million Series A round of funding.",
+    "url": "https://hazelcast.com/blog/series-a-funding/"
+   },
+   {
+    "org": "D-Matrix Inc.",
+    "stage": "Series A",
+    "amount": "$44 million",
+    "lead": "",
+    "date": "",
+    "quote": "D-Matrix Inc. (Santa Clara, Calif.) has closed a $44 million Series A round of funding in support of its digital-in-memory computing (DIMC) chip architecture.",
+    "url": "https://www.eenewseurope.com/en/strong-backing-for-digital-in-memory-computing/"
+   }
+  ],
+  "independentDomains": [
+   "doi.org",
+   "eenewseurope.com",
+   "hazelcast.com",
+   "semiengineering.com"
+  ],
+  "tier": "review",
+  "verdict": "ранняя стадия категории не подтверждена источниками",
   "claims": [
    {
     "label": "Механизм",
-    "text": "симуляция реалистичных, граничных и враждебных взаимодействий для выявления отказов и рисков",
+    "text": "архитектура с массивом настраиваемой ёмкости для увеличения точности умножения и накопления (MAC) и логикой XNOR-накопления для бинарных и тернарных нейронных сетей",
     "status": "supported",
     "sourceId": "s5-0"
    },
    {
     "label": "Признак ранней стадии",
-    "text": "термину 27.5 мес.",
-    "status": "supported",
-    "sourceId": "s5-0"
+    "text": "игроки в источнике не названы",
+    "status": "hypothesis",
+    "sourceId": null
    },
    {
     "label": "Признак ранней стадии",
-    "text": "свежих упоминаний 60%",
-    "status": "supported",
-    "sourceId": "s5-0"
+    "text": "датированное событие 2025-07-05",
+    "status": "hypothesis",
+    "sourceId": null
    },
    {
     "label": "Признак ранней стадии",
-    "text": "тихо: всего 5 упоминаний",
-    "status": "supported",
-    "sourceId": "s5-0"
+    "text": "громкость не измерена: библиометрическое обогащение отключено",
+    "status": "hypothesis",
+    "sourceId": null
    },
    {
     "label": "Признак ранней стадии",
-    "text": "два игрока",
-    "status": "supported",
-    "sourceId": "s5-0"
+    "text": "сомнение в принадлежности области: аппаратная архитектура памяти, не edge",
+    "status": "hypothesis",
+    "sourceId": null
    }
   ],
   "sources": [
    {
     "id": "s5-0",
-    "title": "newmarketpitch.com",
-    "date": "2024-06-13",
+    "title": "doi.org",
+    "date": "2025-07-05",
+    "eventDate": "—",
     "type": "статья",
-    "url": "https://newmarketpitch.com/blogs/news/ai-governance-funding-deals",
-    "quote": "Provides AI assurance software that simulates realistic, edge-case and adversarial interactions to uncover failures and risks before and after deployment.",
+    "url": "https://doi.org/10.3390/electronics14132719",
+    "quote": "By supporting binary and ternary neural networks (BNN/TNN) with XNOR-and-accumulate logic, a dual-mode inference engine further expands capabilities.",
     "language": "en",
     "trust": "низкий",
-    "summaryRu": "симуляция реалистичных, граничных и враждебных взаимодействий для выявления отказов и рисков",
-    "generated": false
-   },
-   {
-    "id": "s5-1",
-    "title": "newmarketpitch.com",
-    "date": "2024-06-13",
-    "type": "статья",
-    "url": "https://newmarketpitch.com/blogs/news/ai-governance-funding-deals",
-    "quote": "Provides adversarial AI evaluation, continuous automated red teaming and runtime protection for frontier models, agents and enterprise AI deployments.",
-    "language": "en",
-    "trust": "низкий",
-    "summaryRu": "симуляция реалистичных, граничных и враждебных взаимодействий для выявления отказов и рисков",
+    "summaryRu": "архитектура с массивом настраиваемой ёмкости для увеличения точности умножения и накопления (MAC) и логикой XNOR-накопления для бинарных и тернарных нейронных сетей",
     "generated": false
    }
   ]
  },
  {
   "id": "t6",
-  "name": "услуга по картированию и тестированию ИИ-агентов и рабочих процессов",
-  "definition": "картирование ИИ-приложений и агентов, тестирование промптов, инструментов и бизнес-процессов с превращением результатов в воспроизводимые доказательства",
-  "signal": 48,
-  "firstYear": 2025,
-  "series": [
-   0,
-   0,
-   0,
-   4,
-   0
-  ],
-  "stage": "продукт",
-  "kind": "ранний сигнал",
+  "name": "детерминированный вывод компьютерного зрения с гарантией микросекундной задержки",
+  "nameEn": "deterministic inference system",
+  "definition": "использование безблокировочных алгоритмов, пулов памяти с детерминированным выделением и пользовательских политик планирования потоков",
+  "signal": 0.5,
+  "scoreMax": 11.0,
+  "firstYear": null,
+  "series": [],
+  "stage": "прототип",
+  "kind": "стадия не подтверждена",
+  "assessment": {
+   "domain": "yes",
+   "stage": "unknown",
+   "domain_reason": "Детерминированный ИИ-инференс на периферии с низкой задержкой",
+   "delta": "Гарантия микросекундной задержки через детерминированные алгоритмы, а не просто оптимизация",
+   "quote": "A high-performance, deterministic inference system with microsecond-level latency guarantees for computer vision models. Built with lock-free algorithms, real-time memory management, and custom scheduling policies to achieve <100μs P99 latency.",
+   "quote_url": "https://github.com/shashwat-shahi/Real-Time-ML-Inference-Pipeline",
+   "provenance": "agent_review",
+   "human_validated": false,
+   "version": "evidence-priority/1",
+   "proposed_stage": "early",
+   "freshness_note": "нет датированного подтверждения раннего проявления за последние 24 месяца"
+  },
   "bank": "Требует экспертной проверки",
   "features": {
-   "nT": 4,
+   "nT": 0,
    "logGrowth": 0.0,
    "share": 0.0,
    "shareGrowth": 0.0,
-   "age": 19.6,
-   "orgs": 1,
+   "age": null,
+   "orgs": 0,
    "hhi": 0.0,
    "coverage": 1,
-   "novelty": 6.0
+   "novelty": 0.5
   },
   "reasons": [
-   "термин молодой: 2025-02-08",
-   "тихо: всего 4 упоминаний"
+   "игроки в источнике не названы",
+   "стадия prototype",
+   "громкость не измерена: библиометрическое обогащение отключено",
+   "Оценка по цитатам: unknown. Гарантия микросекундной задержки через детерминированные алгоритмы, а не просто оптимизация",
+   "отброшено 1 сделок без связи с этой позицией"
   ],
+  "players": [],
+  "chronology": [],
+  "rounds": [],
+  "independentDomains": [
+   "github.com",
+   "pulse2.com"
+  ],
+  "tier": "review",
+  "verdict": "ранняя стадия категории не подтверждена источниками",
   "claims": [
    {
     "label": "Механизм",
-    "text": "картирование ИИ-приложений и агентов, тестирование промптов, инструментов и бизнес-процессов с превращением результатов в воспроизводимые доказательства",
+    "text": "использование безблокировочных алгоритмов, пулов памяти с детерминированным выделением и пользовательских политик планирования потоков",
     "status": "supported",
     "sourceId": "s6-0"
    },
    {
     "label": "Признак ранней стадии",
-    "text": "термин молодой: 2025-02-08",
-    "status": "supported",
-    "sourceId": "s6-0"
+    "text": "игроки в источнике не названы",
+    "status": "hypothesis",
+    "sourceId": null
    },
    {
     "label": "Признак ранней стадии",
-    "text": "тихо: всего 4 упоминаний",
-    "status": "supported",
-    "sourceId": "s6-0"
+    "text": "стадия prototype",
+    "status": "hypothesis",
+    "sourceId": null
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "громкость не измерена: библиометрическое обогащение отключено",
+    "status": "hypothesis",
+    "sourceId": null
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "Оценка по цитатам: unknown. Гарантия микросекундной задержки через детерминированные алгоритмы, а не просто оптимизация",
+    "status": "hypothesis",
+    "sourceId": null
    }
   ],
   "sources": [
    {
     "id": "s6-0",
-    "title": "generalanalysis.com",
-    "date": "2025-02-08",
+    "title": "github.com",
+    "date": "—",
+    "eventDate": "—",
     "type": "статья",
-    "url": "https://generalanalysis.com/guides/best-ai-red-teaming-tools",
-    "quote": "General Analysis maps AI applications and agents, red teams prompts, retrieval, tools, MCP servers, browser actions, permissions, and business workflows, then turns findings into evidence your team can reproduce and retest.",
+    "url": "https://github.com/shashwat-shahi/Real-Time-ML-Inference-Pipeline",
+    "quote": "A high-performance, deterministic inference system with microsecond-level latency guarantees for computer vision models. Built with lock-free algorithms, real-time memory management, and custom scheduling policies to achieve <100μs P99 latency.",
+    "language": "en",
+    "trust": "высокий",
+    "summaryRu": "использование безблокировочных алгоритмов, пулов памяти с детерминированным выделением и пользовательских политик планирования потоков",
+    "generated": false
+   }
+  ]
+ },
+ {
+  "id": "t7",
+  "name": "аппаратное ускорение обработки событийных графовых нейросетей для периферийных устройств",
+  "nameEn": "EV-GNN accelerator",
+  "definition": "использование процессора с параллельным сплайн-сверточным ядром и иерархией памяти с кэшированием для обработки потоков событий",
+  "signal": 0.5,
+  "scoreMax": 11.0,
+  "firstYear": null,
+  "series": [],
+  "stage": "прототип",
+  "kind": "стадия не подтверждена",
+  "assessment": {
+   "domain": "yes",
+   "stage": "unknown",
+   "domain_reason": "Специализированный чип для событийного ИИ на edge-устройствах.",
+   "delta": "Первый специализированный ускоритель EV-GNN с иерархией памяти и кэшированием ROI для событийных данных.",
+   "quote": "We present ETHEREAL, the first EV-GNN accelerator that scales to 640x480 resolutions, thanks to a neighbor-parallel spline-convolution engine and a 2D/3D-split memory hierarchy with a novel region-of-interest spatiotemporal caching mechanism.",
+   "quote_url": "https://rpg.ifi.uzh.ch/research_driving.html",
+   "provenance": "agent_review",
+   "human_validated": false,
+   "version": "evidence-priority/1",
+   "proposed_stage": "early",
+   "freshness_note": "нет датированного подтверждения раннего проявления за последние 24 месяца"
+  },
+  "bank": "Требует экспертной проверки",
+  "features": {
+   "nT": 0,
+   "logGrowth": 0.0,
+   "share": 0.0,
+   "shareGrowth": 0.0,
+   "age": null,
+   "orgs": 0,
+   "hhi": 0.0,
+   "coverage": 2,
+   "novelty": 0.5
+  },
+  "reasons": [
+   "игроки в источнике не названы",
+   "стадия prototype",
+   "громкость не измерена: библиометрическое обогащение отключено",
+   "Оценка по цитатам: unknown. Первый специализированный ускоритель EV-GNN с иерархией памяти и кэшированием ROI для событийных данных.",
+   "все доказательства с одного домена — независимого подтверждения нет"
+  ],
+  "players": [],
+  "chronology": [],
+  "rounds": [],
+  "independentDomains": [
+   "uzh.ch"
+  ],
+  "tier": "review",
+  "verdict": "ранняя стадия категории не подтверждена источниками",
+  "claims": [
+   {
+    "label": "Механизм",
+    "text": "использование процессора с параллельным сплайн-сверточным ядром и иерархией памяти с кэшированием для обработки потоков событий",
+    "status": "supported",
+    "sourceId": "s7-0"
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "игроки в источнике не названы",
+    "status": "hypothesis",
+    "sourceId": null
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "стадия prototype",
+    "status": "hypothesis",
+    "sourceId": null
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "громкость не измерена: библиометрическое обогащение отключено",
+    "status": "hypothesis",
+    "sourceId": null
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "Оценка по цитатам: unknown. Первый специализированный ускоритель EV-GNN с иерархией памяти и кэшированием ROI для событийных данных.",
+    "status": "hypothesis",
+    "sourceId": null
+   }
+  ],
+  "sources": [
+   {
+    "id": "s7-0",
+    "title": "rpg.ifi.uzh.ch",
+    "date": "—",
+    "eventDate": "—",
+    "type": "статья",
+    "url": "https://rpg.ifi.uzh.ch/research_driving.html",
+    "quote": "We present ETHEREAL, the first EV-GNN accelerator that scales to 640x480 resolutions, thanks to a neighbor-parallel spline-convolution engine and a 2D/3D-split memory hierarchy with a novel region-of-interest spatiotemporal caching mechanism.",
     "language": "en",
     "trust": "низкий",
-    "summaryRu": "картирование ИИ-приложений и агентов, тестирование промптов, инструментов и бизнес-процессов с превращением результатов в воспроизводимые доказательства",
+    "summaryRu": "использование процессора с параллельным сплайн-сверточным ядром и иерархией памяти с кэшированием для обработки потоков событий",
+    "generated": false
+   },
+   {
+    "id": "s7-1",
+    "title": "rpg.ifi.uzh.ch",
+    "date": "—",
+    "eventDate": "—",
+    "type": "статья",
+    "url": "https://rpg.ifi.uzh.ch/research_driving.html",
+    "quote": "We therefore introduce ETHEREAL, the first EV-GNN processor chip, capable of bridging this gap by means of a neighbor-parallel spline-convolution engine combined with a split-2D/3D memory hierarchy that introduces a novel spatiotemporal event-caching mechanism.",
+    "language": "en",
+    "trust": "низкий",
+    "summaryRu": "использование процессора с параллельным сплайн-сверточным ядром и иерархией памяти с кэшированием для обработки потоков событий",
+    "generated": false
+   }
+  ]
+ },
+ {
+  "id": "t8",
+  "name": "вычислительные массивы на базе SRAM с аналоговым суммированием заряда",
+  "nameEn": "Charge-domain computing-in-memory",
+  "definition": "использование локальных конденсаторов и сетей перераспределения заряда для выполнения операций умножения и накопления (MAC) в аналоговой области непосредственно в периферии массива SRAM",
+  "signal": 0.5,
+  "scoreMax": 11.0,
+  "firstYear": null,
+  "series": [],
+  "stage": "исследование",
+  "kind": "стадия не подтверждена",
+  "assessment": {
+   "domain": "yes",
+   "stage": "unknown",
+   "domain_reason": "Вычислительные массивы на базе SRAM с аналоговым суммированием — ядро периферийных вычислений.",
+   "delta": "Использование локальных конденсаторов и перераспределения заряда для аналогового MAC, отличаясь от цифровых подходов.",
+   "quote": "Charge-domain computing-in-memory (CD-CiM) macros utilize local metal–insulator–metal (MIM/MOM) capacitors, transmission-gate switches, and hierarchical charge redistribution networks to permit fully or partially analog multiply–accumulate (MAC) execution",
+   "quote_url": "https://www.emergentmind.com/topics/sram-peripheral-near-memory-acceleration",
+   "provenance": "agent_review",
+   "human_validated": false,
+   "version": "evidence-priority/1",
+   "proposed_stage": "early",
+   "freshness_note": "нет датированного подтверждения раннего проявления за последние 24 месяца"
+  },
+  "bank": "Требует экспертной проверки",
+  "features": {
+   "nT": 0,
+   "logGrowth": 0.0,
+   "share": 0.0,
+   "shareGrowth": 0.0,
+   "age": null,
+   "orgs": 0,
+   "hhi": 0.0,
+   "coverage": 1,
+   "novelty": 0.5
+  },
+  "reasons": [
+   "игроки в источнике не названы",
+   "громкость не измерена: библиометрическое обогащение отключено",
+   "сомнение в принадлежности области: аппаратная архитектура, не edge",
+   "Оценка по цитатам: unknown. Использование локальных конденсаторов и перераспределения заряда для аналогового MAC, отличаясь от цифровых подходов.",
+   "хроника из 3 датированных событий, свежайшее 2025-11-24"
+  ],
+  "players": [],
+  "chronology": [
+   {
+    "date": "2025-11-24",
+    "org": "Pandey et al.",
+    "what": "Defined charge-domain computation as wavefunction decomposition",
+    "quote": "In quantum-chemical excited-state analysis, “charge-domain computation” is not a density partitioning scheme in the usual Mulliken, Löwdin, or Bader sense, but an excited-state wavefunction decomposition over localized orbital domains (Pandey et al., 24 Nov 2025).",
+    "url": "https://www.emergentmind.com/topics/charge-domain-computation"
+   },
+   {
+    "date": "2021-07-06",
+    "org": "CAP-RAM",
+    "what": "Presented CAP-RAM, a charge-domain IMC 6T-SRAM macro",
+    "quote": "07/06/2021. A compact, accurate, and bitwidth-programmable in-memory computing (IMC) static random-access memory (SRAM) macro, named CAP-RAM, is presented for energy-efficient convolutional neural network (CNN) inference.",
+    "url": "https://deepai.org/publication/cap-ram-a-charge-domain-in-memory-computing-6t-sram-for-accurate-and-precision-programmable-cnn-inference"
+   },
+   {
+    "date": "2021",
+    "org": "Yin et al.",
+    "what": "Described charge-domain compute-in-memory array macros",
+    "quote": "In charge-domain compute-in-memory, the same principle is specialized to array macros in which XNOR or MAC outcomes are encoded as charge contributions on a floating accumulation line rather than as summed currents (Yin et al., 2021).",
+    "url": "https://www.emergentmind.com/topics/charge-domain-computation"
+   }
+  ],
+  "rounds": [],
+  "independentDomains": [
+   "deepai.org",
+   "emergentmind.com"
+  ],
+  "tier": "review",
+  "verdict": "ранняя стадия категории не подтверждена источниками",
+  "claims": [
+   {
+    "label": "Механизм",
+    "text": "использование локальных конденсаторов и сетей перераспределения заряда для выполнения операций умножения и накопления (MAC) в аналоговой области непосредственно в периферии массива SRAM",
+    "status": "supported",
+    "sourceId": "s8-0"
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "игроки в источнике не названы",
+    "status": "hypothesis",
+    "sourceId": null
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "громкость не измерена: библиометрическое обогащение отключено",
+    "status": "hypothesis",
+    "sourceId": null
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "сомнение в принадлежности области: аппаратная архитектура, не edge",
+    "status": "hypothesis",
+    "sourceId": null
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "Оценка по цитатам: unknown. Использование локальных конденсаторов и перераспределения заряда для аналогового MAC, отличаясь от цифровых подходов.",
+    "status": "hypothesis",
+    "sourceId": null
+   }
+  ],
+  "sources": [
+   {
+    "id": "s8-0",
+    "title": "emergentmind.com",
+    "date": "—",
+    "eventDate": "—",
+    "type": "статья",
+    "url": "https://www.emergentmind.com/topics/sram-peripheral-near-memory-acceleration",
+    "quote": "Charge-domain computing-in-memory (CD-CiM) macros utilize local metal–insulator–metal (MIM/MOM) capacitors, transmission-gate switches, and hierarchical charge redistribution networks to permit fully or partially analog multiply–accumulate (MAC) execution",
+    "language": "en",
+    "trust": "низкий",
+    "summaryRu": "использование локальных конденсаторов и сетей перераспределения заряда для выполнения операций умножения и накопления (MAC) в аналоговой области непосредственно в периферии массива SRAM",
+    "generated": false
+   }
+  ]
+ },
+ {
+  "id": "t9",
+  "name": "использование коммерческих процессоров для ИИ в космических и оборонных системах с системной защитой от радиации",
+  "nameEn": "COTS accelerators",
+  "definition": "применение коммерческих готовых (COTS) ускорителей ИИ вместо радиационно-стойких процессоров с компенсацией радиационных эффектов на уровне системы (watchdog, сбросы)",
+  "signal": 0.5,
+  "scoreMax": 11.0,
+  "firstYear": null,
+  "series": [],
+  "stage": "исследование",
+  "kind": "стадия не подтверждена",
+  "assessment": {
+   "domain": "yes",
+   "stage": "unknown",
+   "domain_reason": "Использование COTS ускорителей ИИ на периферии (космос/оборона) относится к направлению.",
+   "delta": "Валидация жизнеспособности коммерческих ускорителей ИИ в космосе через системную защиту, а не радиационную стойкость чипа.",
+   "quote": "NASA testing shows that COTS accelerators are viable for space missions using system level mitigation.",
+   "quote_url": "https://www.techbriefs.com/component/content/article/55082-cots-edge-ai-accelerators-for-swap-c-constrained-defense-and-space-systems",
+   "provenance": "agent_review",
+   "human_validated": false,
+   "version": "evidence-priority/1",
+   "proposed_stage": "early",
+   "freshness_note": "нет датированного подтверждения раннего проявления за последние 24 месяца"
+  },
+  "bank": "Требует экспертной проверки",
+  "features": {
+   "nT": 0,
+   "logGrowth": 0.0,
+   "share": 0.0,
+   "shareGrowth": 0.0,
+   "age": null,
+   "orgs": 2,
+   "hhi": 0.0,
+   "coverage": 1,
+   "novelty": 0.5
+  },
+  "reasons": [
+   "названы 2 организации",
+   "два игрока",
+   "громкость не измерена: библиометрическое обогащение отключено",
+   "сомнение в принадлежности области: Космическая отрасль, не периферийные вычисления",
+   "Оценка по цитатам: unknown. Валидация жизнеспособности коммерческих ускорителей ИИ в космосе через системную защиту, а не радиационную стойкость чипа.",
+   "хроника из 2 датированных событий, свежайшее 2026-02"
+  ],
+  "players": [
+   {
+    "name": "NASA",
+    "role": "mentioned",
+    "what": "названа в источнике этой позиции",
+    "quote": "",
+    "url": "https://www.techbriefs.com/component/content/article/55082-cots-edge-ai-accelerators-for-swap-c-constrained-defense-and-space-systems"
+   },
+   {
+    "name": "EdgeCortix",
+    "role": "mentioned",
+    "what": "названа в источнике этой позиции",
+    "quote": "",
+    "url": "https://www.techbriefs.com/component/content/article/55082-cots-edge-ai-accelerators-for-swap-c-constrained-defense-and-space-systems"
+   }
+  ],
+  "chronology": [
+   {
+    "date": "2026-02",
+    "org": "OHB",
+    "what": "Contributed flight heritage and satellite designs",
+    "quote": "OHB contributed based on flight heritage and satellite designs.",
+    "url": "https://nebula.esa.int/content/cots-ai-accelerators-mixed-criticality-high-performance-avionics-reconfigurable-satellites"
+   },
+   {
+    "date": "2026-02",
+    "org": "Microlab",
+    "what": "Relied on past ESA activities with COTS benchmarking",
+    "quote": "Microlab relied on past ESA activities with COTS benchmarking and high performance avionics.",
+    "url": "https://nebula.esa.int/content/cots-ai-accelerators-mixed-criticality-high-performance-avionics-reconfigurable-satellites"
+   }
+  ],
+  "rounds": [],
+  "independentDomains": [
+   "esa.int",
+   "techbriefs.com"
+  ],
+  "tier": "review",
+  "verdict": "ранняя стадия категории не подтверждена источниками",
+  "claims": [
+   {
+    "label": "Механизм",
+    "text": "применение коммерческих готовых (COTS) ускорителей ИИ вместо радиационно-стойких процессоров с компенсацией радиационных эффектов на уровне системы (watchdog, сбросы)",
+    "status": "supported",
+    "sourceId": "s9-0"
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "названы 2 организации",
+    "status": "hypothesis",
+    "sourceId": null
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "два игрока",
+    "status": "hypothesis",
+    "sourceId": null
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "громкость не измерена: библиометрическое обогащение отключено",
+    "status": "hypothesis",
+    "sourceId": null
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "сомнение в принадлежности области: Космическая отрасль, не периферийные вычисления",
+    "status": "hypothesis",
+    "sourceId": null
+   }
+  ],
+  "sources": [
+   {
+    "id": "s9-0",
+    "title": "techbriefs.com",
+    "date": "20260501",
+    "eventDate": "—",
+    "type": "статья",
+    "url": "https://www.techbriefs.com/component/content/article/55082-cots-edge-ai-accelerators-for-swap-c-constrained-defense-and-space-systems",
+    "quote": "NASA testing shows that COTS accelerators are viable for space missions using system level mitigation.",
+    "language": "en",
+    "trust": "низкий",
+    "summaryRu": "применение коммерческих готовых (COTS) ускорителей ИИ вместо радиационно-стойких процессоров с компенсацией радиационных эффектов на уровне системы (watchdog, сбросы)",
+    "generated": false
+   }
+  ]
+ },
+ {
+  "id": "t10",
+  "name": "ускорение вывода моделей на GPU с использованием CUDA",
+  "nameEn": "CUDA-accelerated inference",
+  "definition": "асинхронное выполнение задач и передача данных через потоки CUDA с минимизацией копирования памяти",
+  "signal": 0.0,
+  "scoreMax": 11.0,
+  "firstYear": null,
+  "series": [],
+  "stage": "прототип",
+  "kind": "стадия не подтверждена",
+  "assessment": {
+   "domain": "yes",
+   "stage": "unknown",
+   "domain_reason": "CUDA-ускорение инференса — базовый механизм периферийного ИИ.",
+   "delta": "Описан общий подход, нет признаков раннего внедрения или нового механизма.",
+   "quote": "CUDA-accelerated inference for GPU computation",
+   "quote_url": "https://github.com/shashwat-shahi/Real-Time-ML-Inference-Pipeline",
+   "provenance": "agent_review",
+   "human_validated": false,
+   "version": "evidence-priority/1"
+  },
+  "bank": "Требует экспертной проверки",
+  "features": {
+   "nT": 0,
+   "logGrowth": 0.0,
+   "share": 0.0,
+   "shareGrowth": 0.0,
+   "age": null,
+   "orgs": 0,
+   "hhi": 0.0,
+   "coverage": 1,
+   "novelty": 0.0
+  },
+  "reasons": [
+   "игроки в источнике не названы",
+   "стадия prototype",
+   "громкость не измерена: библиометрическое обогащение отключено",
+   "сомнение в принадлежности области: Относится к облачным GPU, не edge",
+   "Оценка по цитатам: unknown. Описан общий подход, нет признаков раннего внедрения или нового механизма.",
+   "все доказательства с одного домена — независимого подтверждения нет"
+  ],
+  "players": [
+   {
+    "name": "Nvidia",
+    "role": "developer",
+    "what": "offers Inference Optimization Architect role for Speech AI",
+    "quote": "Inference Optimization Architect, Speech AI. Nvidia.",
+    "url": "https://www.foundit.in/search/cuda-accelerated-inference-jobs"
+   }
+  ],
+  "chronology": [],
+  "rounds": [],
+  "independentDomains": [
+   "github.com"
+  ],
+  "tier": "review",
+  "verdict": "ранняя стадия категории не подтверждена источниками",
+  "claims": [
+   {
+    "label": "Механизм",
+    "text": "асинхронное выполнение задач и передача данных через потоки CUDA с минимизацией копирования памяти",
+    "status": "supported",
+    "sourceId": "s10-0"
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "игроки в источнике не названы",
+    "status": "hypothesis",
+    "sourceId": null
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "стадия prototype",
+    "status": "hypothesis",
+    "sourceId": null
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "громкость не измерена: библиометрическое обогащение отключено",
+    "status": "hypothesis",
+    "sourceId": null
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "сомнение в принадлежности области: Относится к облачным GPU, не edge",
+    "status": "hypothesis",
+    "sourceId": null
+   }
+  ],
+  "sources": [
+   {
+    "id": "s10-0",
+    "title": "github.com",
+    "date": "—",
+    "eventDate": "—",
+    "type": "статья",
+    "url": "https://github.com/shashwat-shahi/Real-Time-ML-Inference-Pipeline",
+    "quote": "CUDA-accelerated inference for GPU computation",
+    "language": "en",
+    "trust": "высокий",
+    "summaryRu": "асинхронное выполнение задач и передача данных через потоки CUDA с минимизацией копирования памяти",
+    "generated": false
+   }
+  ]
+ },
+ {
+  "id": "t11",
+  "name": "динамическое разделение вычислительного потока между аналоговыми и цифровыми доменами",
+  "nameEn": "dynamic partitioning",
+  "definition": "автоматическое или компиляторное распределение слоев нейросети: плотные слои направляются в аналоговое ядро CIM, а слои с низкой эффективностью (например, depthwise convolutions) или функции активации обрабатываются цифровыми ядрами",
+  "signal": 0.0,
+  "scoreMax": 11.0,
+  "firstYear": null,
+  "series": [],
+  "stage": "исследование",
+  "kind": "стадия не подтверждена",
+  "assessment": {
+   "domain": "yes",
+   "stage": "unknown",
+   "domain_reason": "Гибридные аналого-цифровые вычисления в памяти (CIM) относятся к периферийным вычислениям.",
+   "delta": "Динамическое разделение потоков на лету, а не статическое распределение слоев.",
+   "quote": "Dynamic partitioning: Saliency- or inference-aware allocation of MAC bits to digital or analog domains, e.g., on-the-fly boundary setting via OSE in OSA-HCIM",
+   "quote_url": "https://www.emergentmind.com/topics/hybrid-analogue-digital-compute-in-memory-system",
+   "provenance": "agent_review",
+   "human_validated": false,
+   "version": "evidence-priority/1",
+   "proposed_stage": "early",
+   "freshness_note": "нет датированного подтверждения раннего проявления за последние 24 месяца"
+  },
+  "bank": "Требует экспертной проверки",
+  "features": {
+   "nT": 0,
+   "logGrowth": 0.0,
+   "share": 0.0,
+   "shareGrowth": 0.0,
+   "age": null,
+   "orgs": 0,
+   "hhi": 0.0,
+   "coverage": 1,
+   "novelty": 0.0
+  },
+  "reasons": [
+   "игроки в источнике не названы",
+   "громкость не измерена: библиометрическое обогащение отключено",
+   "сомнение в принадлежности области: архитектура памяти, не edge AI",
+   "Оценка по цитатам: unknown. Динамическое разделение потоков на лету, а не статическое распределение слоев.",
+   "отброшено 1 сделок без связи с этой позицией"
+  ],
+  "players": [],
+  "chronology": [
+   {
+    "date": "2013",
+    "org": "Mesosphere",
+    "what": "dropped out of stealth mode",
+    "quote": "Mesosphere dropped out of stealth mode last year",
+    "url": "https://www.nextplatform.com/control/2015/04/21/teaching-grid-engine-to-speak-mesos/1635551"
+   }
+  ],
+  "rounds": [],
+  "independentDomains": [
+   "emergentmind.com",
+   "nextplatform.com"
+  ],
+  "tier": "review",
+  "verdict": "ранняя стадия категории не подтверждена источниками",
+  "claims": [
+   {
+    "label": "Механизм",
+    "text": "автоматическое или компиляторное распределение слоев нейросети: плотные слои направляются в аналоговое ядро CIM, а слои с низкой эффективностью (например, depthwise convolutions) или функции активации обрабатываются цифровыми ядрами",
+    "status": "supported",
+    "sourceId": "s11-0"
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "игроки в источнике не названы",
+    "status": "hypothesis",
+    "sourceId": null
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "громкость не измерена: библиометрическое обогащение отключено",
+    "status": "hypothesis",
+    "sourceId": null
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "сомнение в принадлежности области: архитектура памяти, не edge AI",
+    "status": "hypothesis",
+    "sourceId": null
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "Оценка по цитатам: unknown. Динамическое разделение потоков на лету, а не статическое распределение слоев.",
+    "status": "hypothesis",
+    "sourceId": null
+   }
+  ],
+  "sources": [
+   {
+    "id": "s11-0",
+    "title": "emergentmind.com",
+    "date": "—",
+    "eventDate": "—",
+    "type": "статья",
+    "url": "https://www.emergentmind.com/topics/hybrid-analogue-digital-compute-in-memory-system",
+    "quote": "Dynamic partitioning: Saliency- or inference-aware allocation of MAC bits to digital or analog domains, e.g., on-the-fly boundary setting via OSE in OSA-HCIM",
+    "language": "en",
+    "trust": "низкий",
+    "summaryRu": "автоматическое или компиляторное распределение слоев нейросети: плотные слои направляются в аналоговое ядро CIM, а слои с низкой эффективностью (например, depthwise convolutions) или функции активации",
+    "generated": false
+   }
+  ]
+ },
+ {
+  "id": "t12",
+  "name": "гибридные микроархитектурные макроячейки с битовым разделением",
+  "nameEn": "split-domain macro",
+  "definition": "разделение разрядности вычислений внутри одной ячейки памяти: старшие биты обрабатываются цифровыми логическими элементами (DCIM), а младшие — аналоговыми элементами (ACIM) с общим аналого-цифровым преобразователем",
+  "signal": 0.0,
+  "scoreMax": 11.0,
+  "firstYear": null,
+  "series": [],
+  "stage": "исследование",
+  "kind": "стадия не подтверждена",
+  "assessment": {
+   "domain": "yes",
+   "stage": "unknown",
+   "domain_reason": "Архитектура CIM-ячеек с гибридной обработкой битов — базовый механизм периферийных вычислений.",
+   "delta": "Битовое разделение внутри одной ячейки памяти, а не просто смешение разных чипов.",
+   "quote": "The hybridization appears both at the SoC system level and down to individual memory macro design, where e.g., the upper bits of a word are processed digitally and lower bits analogically in a split-domain macro",
+   "quote_url": "https://www.emergentmind.com/topics/hybrid-analogue-digital-compute-in-memory-system",
+   "provenance": "agent_review",
+   "human_validated": false,
+   "version": "evidence-priority/1",
+   "proposed_stage": "early",
+   "freshness_note": "нет датированного подтверждения раннего проявления за последние 24 месяца"
+  },
+  "bank": "Требует экспертной проверки",
+  "features": {
+   "nT": 0,
+   "logGrowth": 0.0,
+   "share": 0.0,
+   "shareGrowth": 0.0,
+   "age": null,
+   "orgs": 0,
+   "hhi": 0.0,
+   "coverage": 1,
+   "novelty": 0.0
+  },
+  "reasons": [
+   "игроки в источнике не названы",
+   "громкость не измерена: библиометрическое обогащение отключено",
+   "сомнение в принадлежности области: архитектура памяти, не edge AI",
+   "Оценка по цитатам: unknown. Битовое разделение внутри одной ячейки памяти, а не просто смешение разных чипов.",
+   "все доказательства с одного домена — независимого подтверждения нет"
+  ],
+  "players": [],
+  "chronology": [],
+  "rounds": [],
+  "independentDomains": [
+   "emergentmind.com"
+  ],
+  "tier": "review",
+  "verdict": "ранняя стадия категории не подтверждена источниками",
+  "claims": [
+   {
+    "label": "Механизм",
+    "text": "разделение разрядности вычислений внутри одной ячейки памяти: старшие биты обрабатываются цифровыми логическими элементами (DCIM), а младшие — аналоговыми элементами (ACIM) с общим аналого-цифровым преобразователем",
+    "status": "supported",
+    "sourceId": "s12-0"
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "игроки в источнике не названы",
+    "status": "hypothesis",
+    "sourceId": null
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "громкость не измерена: библиометрическое обогащение отключено",
+    "status": "hypothesis",
+    "sourceId": null
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "сомнение в принадлежности области: архитектура памяти, не edge AI",
+    "status": "hypothesis",
+    "sourceId": null
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "Оценка по цитатам: unknown. Битовое разделение внутри одной ячейки памяти, а не просто смешение разных чипов.",
+    "status": "hypothesis",
+    "sourceId": null
+   }
+  ],
+  "sources": [
+   {
+    "id": "s12-0",
+    "title": "emergentmind.com",
+    "date": "—",
+    "eventDate": "—",
+    "type": "статья",
+    "url": "https://www.emergentmind.com/topics/hybrid-analogue-digital-compute-in-memory-system",
+    "quote": "The hybridization appears both at the SoC system level and down to individual memory macro design, where e.g., the upper bits of a word are processed digitally and lower bits analogically in a split-domain macro",
+    "language": "en",
+    "trust": "низкий",
+    "summaryRu": "разделение разрядности вычислений внутри одной ячейки памяти: старшие биты обрабатываются цифровыми логическими элементами (DCIM), а младшие — аналоговыми элементами (ACIM) с общим аналого-цифровым пр",
+    "generated": false
+   }
+  ]
+ },
+ {
+  "id": "t13",
+  "name": "диагностика неисправностей подшипников двигателей с использованием вейвлет-преобразования и метода опорных векторов на датчике",
+  "nameEn": "on-sensor wavelet transforms",
+  "definition": "выделение признаков вибрационных сигналов с помощью вейвлет-преобразования и классификация с помощью метода опорных векторов (SVM) непосредственно на вычислительном модуле датчика",
+  "signal": 0.0,
+  "scoreMax": 11.0,
+  "firstYear": null,
+  "series": [],
+  "stage": "исследование",
+  "kind": "стадия не подтверждена",
+  "assessment": {
+   "domain": "yes",
+   "stage": "unknown",
+   "domain_reason": "Обработка сигналов непосредственно на датчике (edge AI)",
+   "delta": "Исследование (explored/investigated) вейвлетов и SVM непосредственно на сенсоре, что является новым применением для энергоэффективной диагностики",
+   "quote": "On-sensor wavelet transforms using four popular mother wavelets are explored for fault feature extraction, while an on-sensor support vector machine classifier is investigated for fault diagnosis.",
+   "quote_url": "https://online-journals.org/index.php/i-joe/article/download/10314/5655",
+   "provenance": "agent_review",
+   "human_validated": false,
+   "version": "evidence-priority/1",
+   "proposed_stage": "early",
+   "freshness_note": "нет датированного подтверждения раннего проявления за последние 24 месяца"
+  },
+  "bank": "Требует экспертной проверки",
+  "features": {
+   "nT": 0,
+   "logGrowth": 0.0,
+   "share": 0.0,
+   "shareGrowth": 0.0,
+   "age": null,
+   "orgs": 1,
+   "hhi": 0.0,
+   "coverage": 1,
+   "novelty": 0.0
+  },
+  "reasons": [
+   "громкость не измерена: библиометрическое обогащение отключено",
+   "сомнение в принадлежности области: промышленная диагностика, не edge AI",
+   "Оценка по цитатам: unknown. Исследование (explored/investigated) вейвлетов и SVM непосредственно на сенсоре, что является новым применением для энергоэффективной диагностики",
+   "все доказательства с одного домена — независимого подтверждения нет"
+  ],
+  "players": [
+   {
+    "name": "Case Western Reserve University (CWRU) Bearing Data Center",
+    "role": "mentioned",
+    "what": "названа в источнике этой позиции",
+    "quote": "",
+    "url": "https://online-journals.org/index.php/i-joe/article/download/10314/5655"
+   }
+  ],
+  "chronology": [],
+  "rounds": [],
+  "independentDomains": [
+   "online-journals.org"
+  ],
+  "tier": "review",
+  "verdict": "ранняя стадия категории не подтверждена источниками",
+  "claims": [
+   {
+    "label": "Механизм",
+    "text": "выделение признаков вибрационных сигналов с помощью вейвлет-преобразования и классификация с помощью метода опорных векторов (SVM) непосредственно на вычислительном модуле датчика",
+    "status": "supported",
+    "sourceId": "s13-0"
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "громкость не измерена: библиометрическое обогащение отключено",
+    "status": "hypothesis",
+    "sourceId": null
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "сомнение в принадлежности области: промышленная диагностика, не edge AI",
+    "status": "hypothesis",
+    "sourceId": null
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "Оценка по цитатам: unknown. Исследование (explored/investigated) вейвлетов и SVM непосредственно на сенсоре, что является новым применением для энергоэффективной диагностики",
+    "status": "hypothesis",
+    "sourceId": null
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "все доказательства с одного домена — независимого подтверждения нет",
+    "status": "hypothesis",
+    "sourceId": null
+   }
+  ],
+  "sources": [
+   {
+    "id": "s13-0",
+    "title": "online-journals.org",
+    "date": "—",
+    "eventDate": "—",
+    "type": "статья",
+    "url": "https://online-journals.org/index.php/i-joe/article/download/10314/5655",
+    "quote": "On-sensor wavelet transforms using four popular mother wavelets are explored for fault feature extraction, while an on-sensor support vector machine classifier is investigated for fault diagnosis.",
+    "language": "en",
+    "trust": "низкий",
+    "summaryRu": "выделение признаков вибрационных сигналов с помощью вейвлет-преобразования и классификация с помощью метода опорных векторов (SVM) непосредственно на вычислительном модуле датчика",
+    "generated": false
+   }
+  ]
+ },
+ {
+  "id": "t14",
+  "name": "калибровка аналоговых массивов SRAM на основе выходных данных",
+  "nameEn": "output-based linear correction",
+  "definition": "одноэтапная линейная коррекция неидеальностей аналогового массива и АЦП путем подгонки средних значений и дисперсии к цифровому эталону для вычисления линейных коэффициентов",
+  "signal": 0.0,
+  "scoreMax": 11.0,
+  "firstYear": null,
+  "series": [],
+  "stage": "исследование",
+  "kind": "стадия не подтверждена",
+  "assessment": {
+   "domain": "yes",
+   "stage": "unknown",
+   "domain_reason": "Калибровка аналоговых массивов CiM необходима для работы периферийных вычислений.",
+   "delta": "Одноэтапная калибровка на основе выходных данных для компенсации неидеальностей аналоговых массивов, специфичная для CiM.",
+   "quote": "One-shot, output-based linear correction re-aligns analog array/ADC non-idealities with digital ground truth, using post-silicon mean/variance matching to compute linear coefficients",
+   "quote_url": "https://www.emergentmind.com/topics/sram-peripheral-near-memory-acceleration",
+   "provenance": "agent_review",
+   "human_validated": false,
+   "version": "evidence-priority/1",
+   "proposed_stage": "early",
+   "freshness_note": "нет датированного подтверждения раннего проявления за последние 24 месяца"
+  },
+  "bank": "Требует экспертной проверки",
+  "features": {
+   "nT": 0,
+   "logGrowth": 0.0,
+   "share": 0.0,
+   "shareGrowth": 0.0,
+   "age": null,
+   "orgs": 0,
+   "hhi": 0.0,
+   "coverage": 1,
+   "novelty": 0.0
+  },
+  "reasons": [
+   "игроки в источнике не названы",
+   "громкость не измерена: библиометрическое обогащение отключено",
+   "сомнение в принадлежности области: аппаратная архитектура, не edge",
+   "Оценка по цитатам: unknown. Одноэтапная калибровка на основе выходных данных для компенсации неидеальностей аналоговых массивов, специфичная для CiM.",
+   "все доказательства с одного домена — независимого подтверждения нет"
+  ],
+  "players": [],
+  "chronology": [],
+  "rounds": [],
+  "independentDomains": [
+   "emergentmind.com"
+  ],
+  "tier": "review",
+  "verdict": "ранняя стадия категории не подтверждена источниками",
+  "claims": [
+   {
+    "label": "Механизм",
+    "text": "одноэтапная линейная коррекция неидеальностей аналогового массива и АЦП путем подгонки средних значений и дисперсии к цифровому эталону для вычисления линейных коэффициентов",
+    "status": "supported",
+    "sourceId": "s14-0"
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "игроки в источнике не названы",
+    "status": "hypothesis",
+    "sourceId": null
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "громкость не измерена: библиометрическое обогащение отключено",
+    "status": "hypothesis",
+    "sourceId": null
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "сомнение в принадлежности области: аппаратная архитектура, не edge",
+    "status": "hypothesis",
+    "sourceId": null
+   },
+   {
+    "label": "Признак ранней стадии",
+    "text": "Оценка по цитатам: unknown. Одноэтапная калибровка на основе выходных данных для компенсации неидеальностей аналоговых массивов, специфичная для CiM.",
+    "status": "hypothesis",
+    "sourceId": null
+   }
+  ],
+  "sources": [
+   {
+    "id": "s14-0",
+    "title": "emergentmind.com",
+    "date": "—",
+    "eventDate": "—",
+    "type": "статья",
+    "url": "https://www.emergentmind.com/topics/sram-peripheral-near-memory-acceleration",
+    "quote": "One-shot, output-based linear correction re-aligns analog array/ADC non-idealities with digital ground truth, using post-silicon mean/variance matching to compute linear coefficients",
+    "language": "en",
+    "trust": "низкий",
+    "summaryRu": "одноэтапная линейная коррекция неидеальностей аналогового массива и АЦП путем подгонки средних значений и дисперсии к цифровому эталону для вычисления линейных коэффициентов",
     "generated": false
    }
   ]
@@ -569,73 +1810,92 @@ export const genTrends: Trend[] = [
 
 export const genAnalyses: Analysis[] = [
  {
-  "id": "20260926-18134",
-  "query": "слабые сигналы в защите искусственного интеллекта",
+  "id": "20260929-074558-edge",
+  "query": "Edge computing и периферийный искусственный интеллект",
   "year": 2026,
   "status": "completed",
-  "count": 7,
-  "updated": "2026-09-26"
+  "count": 15,
+  "cost": 58.14,
+  "updated": "2026-09-29"
  }
 ];
 
 export const genExcluded = [
  {
-  "name": "49 кандидатов",
-  "reason": "отбраковано: недостаточно данных о термине",
+  "name": "автономное питание датчиков промышленного мониторинга от термоэлектрических генераторов",
+  "reason": "вне запроса по оценке модели; сохранена в полном пуле для проверки",
   "kind": "шум"
  },
  {
-  "name": "29 кандидатов",
-  "reason": "отбраковано: масштабировано",
-  "kind": "зрелое"
+  "name": "оценка систем компьютерного зрения на основе событийных сенсоров",
+  "reason": "не попала в пятнадцать: ниже по релевантности, доказательствам стадии и баллу",
+  "kind": "шум"
  },
  {
-  "name": "9 кандидатов",
-  "reason": "отбраковано: слишком громкое",
-  "kind": "хайп"
+  "name": "квантование моделей глубокого обучения в int8 для микроконтроллеров",
+  "reason": "не попала в пятнадцать: ниже по релевантности, доказательствам стадии и баллу",
+  "kind": "шум"
  },
  {
-  "name": "24 кандидатов",
-  "reason": "отбраковано: термину больше четырёх лет",
-  "kind": "зрелое"
+  "name": "смешанная точность вычислений в нейронных сетях на периферии",
+  "reason": "не попала в пятнадцать: ниже по релевантности, доказательствам стадии и баллу",
+  "kind": "шум"
  },
  {
-  "name": "2 кандидатов",
-  "reason": "слабый кандидат",
+  "name": "стандартизированная оценка методов реконструкции видео из потоков событий",
+  "reason": "вне запроса по оценке модели; сохранена в полном пуле для проверки",
+  "kind": "шум"
+ },
+ {
+  "name": "иерархическая агрегация признаков соседства узла графа с использованием LSTM",
+  "reason": "вне запроса по оценке модели; сохранена в полном пуле для проверки",
+  "kind": "шум"
+ },
+ {
+  "name": "криптографическая агрегация данных с защитой от сговора",
+  "reason": "вне запроса по оценке модели; сохранена в полном пуле для проверки",
+  "kind": "шум"
+ },
+ {
+  "name": "гомоморфное шифрование для вычислений над зашифрованными данными",
+  "reason": "вне запроса по оценке модели; сохранена в полном пуле для проверки",
+  "kind": "шум"
+ },
+ {
+  "name": "агрегация в зашифрованных базах данных с использованием leveled HE",
+  "reason": "вне запроса по оценке модели; сохранена в полном пуле для проверки",
+  "kind": "шум"
+ },
+ {
+  "name": "централизованное управление политиками безопасности и соответствия конечных точек",
+  "reason": "вне запроса по оценке модели; сохранена в полном пуле для проверки",
+  "kind": "шум"
+ },
+ {
+  "name": "приёмопередатчик Bluetooth Low Energy с однобитной демодуляцией на основе задержки",
+  "reason": "вне запроса по оценке модели; сохранена в полном пуле для проверки",
+  "kind": "шум"
+ },
+ {
+  "name": "оптимизация полосы пропускания супергетеродинного приёмника по скорости входных данных",
+  "reason": "вне запроса по оценке модели; сохранена в полном пуле для проверки",
   "kind": "шум"
  }
 ] as Array<{
   name: string; reason: string; kind: "зрелое" | "хайп" | "шум";
 }>;
 
-export const genPoolSize = 180;
+export const genPoolSize = 65;
 
 /** Воронка последнего прогона: настоящие счётчики, а не оформительские числа. */
 export const genFunnel = {
- "queries": 36,
- "hits": 360,
- "urls": 64,
- "documents": 53,
- "candidates": 84,
- "measured": 120,
- "top": 7,
- "cost": 60.09
+ "queries": 56,
+ "hits": 560,
+ "urls": 200,
+ "documents": 161,
+ "candidates": 65,
+ "top": 15
 };
 
 /** План поиска: то, на что конвейер разбил направление перед поиском. */
-export const genPlan: string[] = [
- "grounded (40 сниппетов",
- "Agentic AI Security",
- "LLM Application Security",
- "AI Posture Management",
- "AI Supply Chain Security",
- "AI Compliance and Regulatory Governance",
- "AI Red Teaming and Adversarial Testing",
- "Sovereign AI Infrastructure",
- "Hardware-Anchored AI Security",
- "AI Model Risk Assessment",
- "Secure AI Lifecycle Management",
- "Prompt Injection Defense",
- "AI Developer Governance",
- "AI Agent Access Control"
-];
+export const genPlan: string[] = [];
