@@ -1,7 +1,3 @@
-# Тесты конвейера: 92 проверки, без сети и без платных вызовов.
-#
-# Три проверки склейки требуют локальной модели эмбеддингов — без неё склейка
-# намеренно не делается вовсе, поэтому модель скачивается заранее и кешируется.
 name: tests
 
 on:
@@ -42,3 +38,27 @@ jobs:
           PY
 
       - run: python -m pytest radar/tests -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tech-trend-searcher
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: tech-trend-searcher/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose config --quiet
+      - run: docker compose -f docker-compose.yml -f hackathon/docker-compose.yml config --quiet
+        env:
+          RADAR_HOST: radar.example.org

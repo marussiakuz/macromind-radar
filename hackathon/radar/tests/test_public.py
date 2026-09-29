@@ -26,6 +26,10 @@ def public(tmp_path, monkeypatch):
     monkeypatch.setattr(mod, "DAILY_RUNS", 2)
     monkeypatch.setattr(mod, "IP_DAILY_RUNS", 1)
     monkeypatch.setattr(mod, "TOKEN", "")
+    monkeypatch.setattr(mod, "RUN_COST_LLM", 30)
+    monkeypatch.setattr(server, "DEMO", False)
+    monkeypatch.setattr(server, "JOBS", {})
+    monkeypatch.setattr(server, "saved_cards", lambda *a, **k: {"trends": []})
     # Живой прогон не запускаем ни при каких условиях: проверяем только привратника бюджета.
     monkeypatch.setattr(server, "search", lambda request: {"job_id": "test", "demo": False})
     monkeypatch.setattr(server, "cached_run", lambda query, **kwargs: None)
@@ -48,7 +52,8 @@ class _Http:
         if token:
             self.headers["x-radar-token"] = token
         self.query_params: dict[str, str] = {}
-        self.client = None
+        from types import SimpleNamespace
+        self.client = SimpleNamespace(host=ip)
 
 
 def test_short_query_is_refused_before_any_check(public) -> None:
@@ -113,7 +118,7 @@ def test_token_is_required_when_set(public, monkeypatch) -> None:
     assert public.guarded_search(_request(), _Http(token="жюри-2026"))["job_id"] == "test"
 
 
-def test_stale_job_is_marked_failed_with_a_reason(public, monkeypatch) -> None:
+def test_slow_job_warns_without_pretending_to_stop_worker(public, monkeypatch) -> None:
     from datetime import datetime, timedelta, timezone
     from radar import server
 
@@ -124,8 +129,9 @@ def test_stale_job_is_marked_failed_with_a_reason(public, monkeypatch) -> None:
     monkeypatch.setattr(public, "RUN_TIMEOUT", 1200)
 
     assert public.sweep_stale_jobs() == ["зависший"]
-    assert server.JOBS["зависший"]["status"] == "failed"
-    assert "тайм-ауту" in server.JOBS["зависший"]["error"]
+    assert server.JOBS["зависший"]["status"] == "running"
+    assert "продолжает" in server.JOBS["зависший"]["timeout_notice"]
+    assert public.sweep_stale_jobs() == []
     assert server.JOBS["свежий"]["status"] == "running"
 
 

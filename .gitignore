@@ -1,11 +1,13 @@
 # Белый список: по умолчанию не попадает ничего.
-# В корне лежат договоры, презентации, таблица заказчика и Pre-DD — публиковать их
-# нельзя, поэтому перечисляем то, что входит, а не то, что исключаем.
+# В публичную сборку входят только явно перечисленные файлы.
 /*
 !/.gitignore
 !/.env.example
 !/README.md
 !/DOCUMENTATION.md
+!/docker-compose.yml
+!/.dockerignore
+!/techtrendsearcher.pdf
 
 # Публикация статического интерфейса на GitHub Pages
 !/.github/
@@ -17,14 +19,10 @@
 /hackathon/*
 !/hackathon/radar/
 !/hackathon/.gitignore
-# Документы публикуем поимённо. Переписка с ассистентами, промпты для них, точки
-# возврата и их промежуточные отчёты в продуктовый репозиторий не входят: жюри должно
-# видеть работающее решение, а не журнал работы над ним.
+# Публичная документация перечислена явно; рабочие материалы не включаются.
 !/hackathon/architecture-2026-09-29.md
 !/hackathon/deploy-mvp-2026-09-29.md
 !/hackathon/submission-methodology-2026-09-28.md
-!/hackathon/reference-funnel-audit-2026-09-29.md
-!/hackathon/methods-weak-signals.md
 !/hackathon/runbook-demo-2026-09-28.md
 !/hackathon/screencast-script-2026-09-29.md
 !/hackathon/requirements.txt
@@ -37,14 +35,6 @@
 /hackathon/deploy/*.tar.gz
 # Настоящая выборка одного прогона: инструменты и тесты работают без сети и без оплаты
 !/hackathon/samples/
-# Опыты: только то, на что ссылается документация, — карточка модели, её обучение и
-# датасет оценок. Промежуточные выгрузки разметки моделью не публикуем.
-!/hackathon/learning/
-/hackathon/learning/*
-!/hackathon/learning/reranker-card-20260929.json
-!/hackathon/learning/train_reranker.py
-!/hackathon/learning/rank-dataset-20260929.json
-
 # Интерфейс
 !/tech-trend-searcher/
 /tech-trend-searcher/*
@@ -56,7 +46,6 @@
 !/tech-trend-searcher/vite.config.ts
 !/tech-trend-searcher/README.md
 
-# Стенд сравнения двух реализаций — рабочий артефакт, в продуктовый репозиторий не идёт
 
 # Внутри разрешённых каталогов — всё равно без секретов и мусора
 .env
@@ -73,7 +62,7 @@ node_modules/
 dist/
 .DS_Store
 .git-standalone-backup/
-# Данные прогонов: 415 МБ сохранённых страниц. Для проверки достаточно hackathon/samples/
+# Рабочие данные прогонов; пример для демонстрации лежит в hackathon/samples/
 radar-runs/
 # Учёт расходов: локальное состояние, не артефакт
 ledger.json

@@ -1,24 +1,4 @@
-"""Публичный MVP: тот же сервис, но пригодный для открытого адреса.
-
-Живой прогон стоит денег (замер 28.09.2026: 89,7 ₽, из них около 30 ₽ модели и около
-60 ₽ поиска) и идёт 7–11 минут. На открытом адресе это значит три новых риска, которых
-не было на ноутбуке:
-
-1. **Корзину может исчерпать кто угодно.** Поэтому новый прогон не запускается, если
-   остатка не хватает на полный прогон: отказ с числами лучше, чем прогон, который
-   умрёт на середине, потратив поисковую корзину впустую.
-2. **Квота.** Ограничение на сутки — общее и на один адрес. Повтор уже посчитанного
-   запроса бесплатен и квоту не тратит: он отдаётся из сохранённого разбора.
-3. **Зависший прогон.** Если поисковый API перестанет отвечать, задача осталась бы в
-   состоянии «выполняется» навсегда. Сторож помечает её отказом по тайм-ауту.
-
-Сервер запускается так (за ним ставится HTTPS-прокси):
-
-    uvicorn radar.public:app --host 0.0.0.0 --port 8000
-
-Ничего из `radar/server.py` здесь не переписывается: наш маршрут `/api/search` встаёт
-перед его маршрутом, остальные эндпоинты остаются как есть.
-"""
+"""Ограничения публичного API: токен запуска, суточные квоты и бюджет."""
 from __future__ import annotations
 
 import json
@@ -38,9 +18,8 @@ from .server import SearchRequest
 
 app = server.app
 
-# Стоимость одного прогона по замеру 28.09.2026. Переопределяется окружением, если
-# цены источников изменятся: держать число в коде и забыть его обновить — хуже.
-RUN_COST_LLM = float(os.environ.get("RADAR_RUN_COST_LLM", "30"))
+# Минимальные остатки для старта, а не гарантия полной стоимости анализа.
+RUN_COST_LLM = float(os.environ.get("RADAR_RUN_COST_LLM", "200"))
 RUN_COST_SEARCH = float(os.environ.get("RADAR_RUN_COST_SEARCH", "60"))
 
 DAILY_RUNS = int(os.environ.get("RADAR_DAILY_RUNS", "6"))
@@ -49,7 +28,7 @@ RUN_TIMEOUT = int(os.environ.get("RADAR_RUN_TIMEOUT", "1200"))
 TOKEN = os.environ.get("RADAR_PUBLIC_TOKEN", "")
 
 QUOTA_FILE = Path(os.environ.get("RADAR_QUOTA_FILE", str(RUNS_DIR / "public-quota.json")))
-_QUOTA_LOCK = threading.Lock()
+_QUOTA_LOCK = threading.RLock()
 
 
 def _today() -> str:
@@ -70,10 +49,7 @@ def _read_quota() -> dict:
 
 
 def _client_ip(http: Request) -> str:
-    # За прокси настоящий адрес приходит заголовком. Первый элемент списка — клиент.
-    forwarded = http.headers.get("x-forwarded-for", "")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
+    # Заголовки прокси разбирает Uvicorn только от доверенных адресов.
     return http.client.host if http.client else "unknown"
 
 
@@ -99,31 +75,39 @@ def budget_state() -> dict:
         left = Ledger().remaining()
     except Exception:
         return {"known": False}
+    capacities = [left.get(kind, 0.0) / cost for kind, cost in
+                  (("search", RUN_COST_SEARCH), ("llm", RUN_COST_LLM)) if cost > 0]
     return {"known": True, "search": left.get("search", 0.0), "llm": left.get("llm", 0.0),
             "run_cost_search": RUN_COST_SEARCH, "run_cost_llm": RUN_COST_LLM,
-            "runs_left": int(min(left.get("search", 0.0) / RUN_COST_SEARCH,
-                                 left.get("llm", 0.0) / RUN_COST_LLM))}
+            "runs_left": int(min(capacities)) if capacities else DAILY_RUNS}
 
 
 def guarded_search(request: SearchRequest, http: Request) -> dict:
+    # Проверка и списание квоты выполняются атомарно в одном процессе сервиса.
+    with _QUOTA_LOCK:
+        return _guarded_search(request, http)
+
+
+def _guarded_search(request: SearchRequest, http: Request) -> dict:
     """Тот же запуск анализа, но с проверками до первой траты."""
     if TOKEN:
-        given = http.headers.get("x-radar-token") or http.query_params.get("token", "")
+        given = http.headers.get("x-radar-token", "")
         if given != TOKEN:
-            raise HTTPException(401, "нужен токен доступа: жюри получает его вместе со ссылкой")
+            raise HTTPException(401, "Введите токен доступа, выданный администратором")
 
     query = (request.query or "").strip()
     if len(query) < 3:
         raise HTTPException(400, "запрос короче трёх символов")
 
-    # Повтор уже посчитанного запроса ничего не стоит: ни квоты, ни корзины.
-    try:
-        already = server.cached_run(query, plan=request.plan,
-            allow_legacy=request.demo or server.DEMO or os.environ.get("RADAR_CACHE_ONLY") == "1") is not None
-    except Exception:
-        already = False
+    request_key = (query.casefold(), request.plan, request.demo, request.force)
+    for job_id, job in list(server.JOBS.items()):
+        if job.get("status") == "running" and job.get("_request_key") == request_key:
+            return {"job_id": job_id, "demo": server.DEMO, "reused": True, "free": True}
 
-    if not already and not (request.demo or server.DEMO):
+    offline = request.demo or server.DEMO or os.environ.get("RADAR_CACHE_ONLY") == "1"
+    run = server.cached_run(query, plan=request.plan, allow_legacy=offline)
+    already = run is not None and server.saved_cards(run, allow_legacy=offline) is not None
+    if not already and not offline:
         ip = _client_ip(http)
         used = quota_state(ip)
         if used["runs_today"] >= DAILY_RUNS:
@@ -138,17 +122,18 @@ def guarded_search(request: SearchRequest, http: Request) -> dict:
                 f"сохранённые разборы открыты."))
 
         money = budget_state()
-        if money.get("known") and (money["llm"] < RUN_COST_LLM or money["search"] < RUN_COST_SEARCH):
+        if not money.get("known"):
+            raise HTTPException(503, "Не удалось прочитать бюджет; проверьте журнал расходов на сервере")
+        if (money["llm"] < RUN_COST_LLM or money["search"] < RUN_COST_SEARCH):
             raise HTTPException(402, (
-                f"бюджета не хватает на полный прогон: осталось поиск {money['search']:.0f} ₽ "
-                f"и модель {money['llm']:.0f} ₽, а прогон стоит примерно "
-                f"{RUN_COST_SEARCH:.0f} ₽ и {RUN_COST_LLM:.0f} ₽. Запускать не будем: "
-                f"прогон оборвался бы на середине, потратив поиск впустую. "
-                f"Сохранённые разборы доступны."))
+                f"недостаточно бюджета для запуска: поиск {money['search']:.0f} ₽, "
+                f"модель {money['llm']:.0f} ₽. Минимум для старта: "
+                f"{RUN_COST_SEARCH:.0f} ₽ и {RUN_COST_LLM:.0f} ₽ соответственно. "
+                "Администратор может изменить лимиты. Сохранённые разборы доступны."))
         _charge_quota(ip)
 
     started = server.search(request)
-    started["free"] = already
+    started["free"] = already or offline
     return started
 
 
@@ -158,7 +143,7 @@ def limits(http: Request) -> dict:
     running = [j for j in server.JOBS.values() if j.get("status") == "running"]
     return {"budget": budget_state(), "quota": quota_state(_client_ip(http)),
             "running": len(running), "run_timeout_sec": RUN_TIMEOUT,
-            "token_required": bool(TOKEN)}
+            "token_required": bool(TOKEN), "demo": server.DEMO}
 
 
 def _age_seconds(job: dict) -> float:
@@ -170,22 +155,15 @@ def _age_seconds(job: dict) -> float:
 
 
 def sweep_stale_jobs() -> list[str]:
-    """Помечает отказом задачи, которые идут дольше тайм-аута.
-
-    Поток задачи при этом не убивается — остановить его на середине конвейера нечем.
-    Смысл в другом: интерфейс перестаёт опрашивать вечно и показывает причину.
-    """
+    """Предупреждает о долгом анализе, не выдавая работающий поток за остановленный."""
     stale = []
     for job in list(server.JOBS.values()):
-        if job.get("status") != "running" or _age_seconds(job) <= RUN_TIMEOUT:
+        if (job.get("status") != "running" or job.get("timeout_notice")
+                or _age_seconds(job) <= RUN_TIMEOUT):
             continue
-        job["status"] = "failed"
-        job["error"] = (f"прогон шёл дольше {RUN_TIMEOUT // 60} минут и снят по тайм-ауту. "
-                        f"Обычный прогон занимает 7–11 минут; вероятная причина — "
-                        f"медленный ответ источника. Попробуйте ещё раз или откройте "
-                        f"сохранённый разбор.")
-        job["stage"] = "снято по тайм-ауту"
-        job["finished"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        job["timeout_notice"] = (
+            f"Анализ идёт больше {RUN_TIMEOUT // 60} минут и продолжает выполняться. "
+            "Не запускайте его повторно; проверьте журнал сервера.")
         stale.append(job.get("id", ""))
     return stale
 
@@ -201,6 +179,10 @@ def _watchdog(interval: int = 30) -> None:  # pragma: no cover - фоновый 
 
 # Наш маршрут встаёт перед маршрутом server.py: совпадает первый подходящий.
 app.router.routes.insert(0, APIRoute("/api/search", guarded_search, methods=["POST"]))
+
+# Статика должна идти после всех API-маршрутов, включая /api/limits.
+from starlette.routing import Mount
+app.router.routes.sort(key=lambda route: isinstance(route, Mount))
 
 if os.environ.get("RADAR_NO_WATCHDOG") != "1":  # pragma: no cover
     threading.Thread(target=_watchdog, daemon=True).start()

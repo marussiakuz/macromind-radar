@@ -176,6 +176,7 @@ def test_cached_pool_requires_matching_pipeline_limits_and_plan(tmp_path,monkeyp
     from radar import server
     settings=Settings()
     p=tmp_path/'20260929-000001-edge';p.mkdir();(p/'candidates.jsonl').write_text('')
+    (p/'cards.json').write_text(json.dumps({'version':'old','trends':[]}))
     m={'mode':'live','query':'Edge','area':'Edge'};(p/'manifest.json').write_text(json.dumps(m))
     monkeypatch.setattr(server,'RUNS_DIR',tmp_path)
     assert server.cached_run('Edge',settings=settings) is None

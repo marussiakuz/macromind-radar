@@ -1,9 +1,6 @@
-"""Вертикаль «направление → пул кандидатов» и командная строка.
+"""Построение пула кандидатов: поиск, загрузка, извлечение и объединение.
 
-Это проверка одного вопроса: сколько эталонных категорий области доходит до
-пула. Фильтра зрелости, карточек и интерфейса здесь нет — они в разделе 14.
-Все артефакты прогона пишутся в radar-runs/<run_id>/ и годятся для повтора.
-"""
+CLI сохраняет результаты в RADAR_RUNS_DIR. Фильтры и карточки собирает HTTP-сервис."""
 from __future__ import annotations
 
 import argparse
@@ -62,7 +59,7 @@ def dry_run(area: str, settings: Settings) -> str:
         f"выходных токенов ≈       {out_tok}",
         f"стоимость ≈              {cost} ₽",
         "",
-        "Это оценка по тарифам раздела 12 отчёта, а не замер.",
+        "Это оценка этапа извлечения по заданным тарифам. Проверки и карточки оплачиваются отдельно.",
     ])
 
 
@@ -338,9 +335,9 @@ def run_pool(
     _jsonl(out / "documents.jsonl", docs)
     _jsonl(out / "candidates.jsonl", merged)
     text = report(area, funnel, c_value, len(items), [])
-    text += (f"\n\nВремя прогона: {time.monotonic() - started:.1f} с; стоимость ≈ {manifest.cost_rub} ₽."
-             f"\nСовпадения предложены, но не засчитаны: подтвердите их в {review_path.name}"
-             f" и запустите «evaluate».")
+    text += f"\n\nВремя прогона: {time.monotonic() - started:.1f} с; стоимость ≈ {manifest.cost_rub} ₽."
+    if items:
+        text += f"\nПодтвердите соответствия в {review_path.name} и запустите «evaluate»."
     (out / "report.txt").write_text(text, encoding="utf-8")
     print(text)
     return out
@@ -456,7 +453,7 @@ def main(argv: list[str] | None = None) -> int:
     p_dry.add_argument("--area", required=True)
 
     p_run = sub.add_parser("run", help="прогон пула кандидатов")
-    p_run.add_argument("--area", required=True)
+    p_run.add_argument("--area", default="", help="область закрытого эталона, только для оценки покрытия")
     p_run.add_argument("--direction", required=True, help="запрос пользователя, без названий из таблицы")
     p_run.add_argument("--mode", choices=["live", "fixtures"], default="fixtures")
     p_run.add_argument("--max-docs", type=int, default=None)

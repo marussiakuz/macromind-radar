@@ -154,10 +154,10 @@ def read_review_file(path: Path) -> list[MatchSuggestion]:
 
 
 def report(area: str, funnel: Funnel, c_value: int, total_ref: int, errors: list[str]) -> str:
-    target = 14
     lines = [
-        f"Область: {area}",
-        f"C = {c_value} из {total_ref} эталонных категорий (цель C ≥ {target})",
+        f"Область: {area or 'открытый запрос'}",
+        (f"C = {c_value} из {total_ref} эталонных категорий" if total_ref
+         else "Эталон не задан; покрытие не измеряется."),
         "",
         "Воронка:",
         f"  поисковых запросов        {funnel.queries}",

@@ -17,7 +17,7 @@ from lxml import etree
 
 from .config import SearchHit, Settings, RUNS_DIR
 
-# Две линзы из раздела 1.2 ответа GPT: технический механизм и рынок.
+# Шаблоны запросов для разных типов источников.
 LENSES: dict[str, dict[str, str]] = {
     "product": {
         "en": "{sub} product launch generally available vendor 2026",
@@ -280,15 +280,11 @@ class FixtureSearch:
         self.calls = 0
 
     def search(self, query: str, lang: str, lens: str, count: int) -> list[SearchHit]:
-        """Файл линзы, а если его нет — любой файл того же языка.
-
-        Проверено 26.09.2026: фикстуры сохранены под старые имена линз (market,
-        mechanism), поэтому демонстрационный режим молча отдавал ноль документов, и
-        unit-тесты этого не показывали. Запасной путь делает демо-режим рабочим при
-        любом переименовании линз.
-        """
+        """Файл для типа запроса; старые имена сохранены для совместимости fixtures."""
         self.calls += 1
-        path = self.dir / f"{lang}_{lens}.json"
+        fixture_lens = {"product": "mechanism", "funding": "market",
+                        "standard": "mechanism", "research": "mechanism"}.get(lens, lens)
+        path = self.dir / f"{lang}_{fixture_lens}.json"
         if not path.exists():
             fallback = sorted(self.dir.glob(f"{lang}_*.json"))
             if not fallback:

@@ -18,6 +18,7 @@ def test_ledger_corruption_never_restores_budget(tmp_path):
 def test_reservations_same_second_and_retries(tmp_path, monkeypatch):
     monkeypatch.setattr('radar.ledger._now', lambda: 'same-second')
     ledger = Ledger(tmp_path / 'ledger.json')
+    ledger.authorize("test", 100, 100, "test budget")
     start = ledger.remaining()
     a = ledger.reserve(10, 'search'); b = ledger.reserve(5, 'llm')
     assert a.reservation_id != b.reservation_id

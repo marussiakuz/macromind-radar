@@ -222,10 +222,25 @@ def test_select_urls_limits_one_owner() -> None:
     assert any(registrable_domain(h.url) == "b.com" for h in selected)
 
 
-def test_reference_has_100_rows() -> None:
-    items, sha = load_reference()
+def test_reference_reads_rows_and_hash_without_private_dataset(tmp_path) -> None:
+    from openpyxl import Workbook
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Слабые сигналы"
+    for number in range(1, 101):
+        sheet.cell(number + 2, 2, number)
+        sheet.cell(number + 2, 3, f"Тестовый механизм {number}")
+        sheet.cell(number + 2, 4, "Тестовая область")
+    path = tmp_path / "reference.xlsx"
+    workbook.save(path)
+    items, sha = load_reference(path)
     assert len(items) == 100 and len(sha) == 64
-    assert len([i for i in items if i.area == "Защита ИИ"]) == 16
+    assert items[0].name == "Тестовый механизм 1"
+    assert items[-1].number == 100 and items[-1].area == "Тестовая область"
+    sheet.cell(102, 3).value = None
+    workbook.save(path)
+    with pytest.raises(ValueError, match="ожидали 100"):
+        load_reference(path)
 
 
 def test_normalize_tokens_drops_stopwords() -> None:
@@ -750,7 +765,7 @@ def test_old_quiet_term_without_novelty_requires_maturity_proof() -> None:
 def test_gate_catches_consumer_sense_of_a_word() -> None:
     # Замер 29.09.2026: запрос «Edge» дал 14 страниц из 17 про скачивание браузера и
     # словарный перевод. Без привратника конвейер пятнадцать минут искал бы технологии
-    # в карточках товара — именно на этой двусмысленности Codex потерял весь опыт Edge.
+    # в карточках товара; такая неоднозначность меняет область поиска.
     from radar.gate import CONSUMER
     assert CONSUMER.search("Скачать браузер Microsoft Edge | Windows, Mac, Linux")
     assert CONSUMER.search("Edge - онлайн перевод с английского на русский")
@@ -782,6 +797,7 @@ def test_ledger_keeps_two_baskets_separate(tmp_path) -> None:
     # пересборки карточек на сохранённом пуле не считались нигде.
     from radar.ledger import Ledger, LimitReached
     led = Ledger(path=tmp_path / "ledger.json")
+    led.authorize("test", 100, 100, "test budget")
     start = led.remaining()
     assert start["search"] > 0 and start["llm"] > 0
     led.reserve(1.0, "search", "проба")
@@ -794,6 +810,7 @@ def test_ledger_keeps_two_baskets_separate(tmp_path) -> None:
 def test_ledger_refunds_difference_after_actual_cost(tmp_path) -> None:
     from radar.ledger import Ledger
     led = Ledger(path=tmp_path / "ledger.json")
+    led.authorize("test", 100, 100, "test budget")
     before = led.remaining()["llm"]
     with led.paid(5.0, "llm", "пакет") as spent:
         spent["actual"] = 0.4
@@ -805,6 +822,7 @@ def test_ledger_keeps_reserve_when_call_fails(tmp_path) -> None:
     # успешные ответы, занижает расход — поэтому резерв остаётся за собой.
     from radar.ledger import Ledger
     led = Ledger(path=tmp_path / "ledger.json")
+    led.authorize("test", 100, 100, "test budget")
     before = led.remaining()["search"]
     with contextlib.suppress(RuntimeError):
         with led.paid(0.488, "search", "оборвался") as spent:
@@ -816,6 +834,7 @@ def test_ledger_keeps_reserve_when_call_fails(tmp_path) -> None:
 def test_ledger_history_is_not_reset(tmp_path) -> None:
     from radar.ledger import Ledger
     path = tmp_path / "ledger.json"
+    Ledger(path=path).authorize("test", 100, 100, "test budget")
     Ledger(path=path).reserve(0.488, "search", "первый")
     again = Ledger(path=path)                # новый объект, тот же файл
     again.reserve(0.488, "search", "второй")

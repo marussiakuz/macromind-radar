@@ -1,21 +1,8 @@
-"""Собирает лёгкую посылку состояния для публичного сервера.
+"""Архив готовых разборов для переноса на другой сервер.
 
-Зачем: полные прогоны занимают 415 МБ, потому что хранят снимки страниц. Серверу для
-мгновенного показа сохранённого разбора нужны только три файла на прогон:
-
-* `manifest.json`   — по нему `cached_run` узнаёт запрос и область;
-* `candidates.jsonl` — его существование обязательно, иначе прогон не считается сохранённым;
-* `cards.json`      — готовые карточки; если версия совпадает с `CARDS_VERSION`, сервис
-  отдаёт разбор мгновенно и ничего не платит.
-
-Версия карточек проверяется здесь же: прогон с устаревшей версией в посылку не попадает,
-иначе повторный запрос на сервере пересчитал бы карточки за деньги.
-
-Ещё в посылку кладётся `ledger.json` — учёт расходов. Без него сервер начнёт отсчёт от
-начальных значений и решит, что денег больше, чем есть.
-
-    python deploy/pack-runs.py            # → deploy/runs-seed.tar.gz
-    python deploy/pack-runs.py --list     # только показать, что попадёт
+По умолчанию переносит только карточки, кандидатов и манифесты.
+--include-ledger добавляет журнал расходов: используйте при миграции своего
+сервера, а не при подготовке примера для другого пользователя.
 """
 from __future__ import annotations
 
@@ -43,7 +30,7 @@ def cards_version() -> str:
 
 def usable_runs(version: str) -> list[tuple[Path, dict]]:
     out = []
-    for run in sorted(RUNS.glob("2026*")):
+    for run in sorted(RUNS.glob("*")):
         if not all((run / name).exists() for name in NEEDED):
             continue
         try:
@@ -63,6 +50,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--list", action="store_true", help="показать состав без упаковки")
     ap.add_argument("--out", default=str(Path(__file__).resolve().parent / "runs-seed.tar.gz"))
+    ap.add_argument("--include-ledger", action="store_true")
     args = ap.parse_args()
 
     version = cards_version()
@@ -85,17 +73,17 @@ def main() -> None:
             target.mkdir(parents=True)
             for name in NEEDED:
                 shutil.copy2(run / name, target / name)
-        if ledger.exists():
+        if args.include_ledger and ledger.exists():
             shutil.copy2(ledger, stage / "ledger.json")
             print("учёт расходов: ledger.json включён")
         else:
-            print("ВНИМАНИЕ: ledger.json не найден — сервер начнёт учёт с начальных значений")
+            print("Журнал расходов не включён; при миграции перенесите его отдельно.")
         out = Path(args.out)
         with tarfile.open(out, "w:gz") as tar:
             tar.add(stage, arcname="radar-runs")
     size = out.stat().st_size / 1024
     print(f"готово: {out} ({size:.0f} КБ)")
-    print("на сервере: tar -xzf runs-seed.tar.gz -C /opt/radar")
+    print("Архив содержит radar-runs/. Не распаковывайте его поверх действующего состояния без резервной копии.")
 
 
 if __name__ == "__main__":

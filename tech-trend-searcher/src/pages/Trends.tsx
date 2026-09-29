@@ -1,20 +1,24 @@
 import { Link } from "react-router-dom";
-import { searchStats } from "../data";
+import { searchStats, savedQuery } from "../data";
 import { useApp } from "../state";
 import { Button, TrendLine } from "../ui";
 
 export function Trends() {
   const { liveTrends: allTrends } = useApp();
-  const { query, job } = useApp();
+  const { job } = useApp();
 
   return (
     <>
       <p className="tiny">Открытый поиск · выдача</p>
+      {(job?.demo || !job || job.status !== "completed") && (
+        <p className="notice">Сохранённый пример от 29 сентября 2026 года.
+          Это результат предыдущего запуска; источники и выводы требуют проверки.</p>
+      )}
       <div className="section-head">
         <div>
           <h2>Топ-15 слабых сигналов</h2>
           <p className="muted" style={{ marginTop: 8 }}>
-            Запрос: «{query}». Сначала показаны кандидаты с признаками ранней стадии.
+            Запрос: «{job?.status === "completed" ? job.query : savedQuery}». Сначала показаны кандидаты с признаками ранней стадии.
             Неподтверждённые выводы отмечены для проверки аналитиком.
           </p>
         </div>

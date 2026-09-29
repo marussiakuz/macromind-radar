@@ -1,8 +1,4 @@
-"""Настройки, лимиты и модели данных конвейера.
-
-Все числовые лимиты — из раздела 3 файла review-sources-pipeline.md.
-Менять их можно только вместе с пересчётом бюджета времени и денег.
-"""
+"""Настройки окружения, ограничения одного анализа и модели данных."""
 from __future__ import annotations
 
 import os
@@ -10,11 +6,30 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
+from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field
 
 ROOT = Path(__file__).resolve().parent.parent  # hackathon/
-RUNS_DIR = ROOT / "radar-runs"
+
+
+def load_env_file(path: Path | None = None) -> None:
+    """Приоритет: окружение процесса → .env в корне → hackathon/.env."""
+    if path is None and os.getenv("RADAR_LOAD_ENV") == "0":
+        return
+    for env in ([path] if path is not None else [ROOT.parent / ".env", ROOT / ".env"]):
+        if not env.is_file():
+            continue
+        for line in env.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
+load_env_file()
+RUNS_DIR = Path(os.getenv("RADAR_RUNS_DIR") or ROOT / "radar-runs")
 EVAL_DIR = ROOT / "radar" / "eval"
 FIXTURES_DIR = ROOT / "radar" / "fixtures"
 CUSTOMER_XLSX = ROOT / "Документы от заказчика" / "100_слабых_технологических_сигналов_сентябрь_2026.xlsx"
@@ -43,24 +58,10 @@ class Limits:
     """Потолки одного прогона пула кандидатов."""
 
     discovery_queries: int = 60        # дерево: каждый лист, затем алиасы и восстановление
-    results_per_query: int = 10        # до 240 позиций до дедупликации
-    # Измерено 28.09.2026 на снимке 20260927-082453-финтех: поиск дал 300 уникальных URL,
-    # а до отбора доходили 64 — то есть 236 адресов не пробовали загрузить вообще. Парный
-    # опыт с дозагрузкой поднял покрытие эталона с 5 из 17 до 9 из 17, и все новые
-    # совпадения пришли именно из ранее не скачанных документов. Загрузка бесплатна,
-    # платит только извлечение, поэтому пределы разведены.
-    fetch_attempts: int = 200          # загрузки и платное извлечение ограничены отдельно
-    max_per_owner: int = 4             # не больше 4 URL одного владельца
-    # Читаем весь скачанный корпус, а единственный отсев — по дате публикации.
-    # Порог 2024-01-01 выведен из источников заказчика 29.09.2026: скачаны все 283 ссылки
-    # его таблицы, дата нашлась у 115, и это единственная граница, при которой ни одна из
-    # 100 строк не теряет все свои датированные источники (при окне в 24 месяца теряются
-    # три, включая «NPU внутри батарейных MCU/SoC»).
-    # Цена полного чтения: ≈1 ₽ за документ, то есть 150–160 ₽ на область вместо 72.
-    # Для показа потолки возвращаются окружением, код править не нужно.
-    #   RADAR_EXTRACTION_PACKETS — сколько документов читает модель (≈1 ₽ за документ);
-    #   RADAR_MAX_PER_SOURCE     — сколько документов берём с одного обычного сайта;
-    #   RADAR_MIN_PUBLISHED      — отсечка по дате публикации, YYYY-MM-DD.
+    results_per_query: int = 10        # позиций в ответе на один запрос
+    fetch_attempts: int = 200          # попытки загрузки документов
+    max_per_owner: int = 4
+    # Число пакетов извлечения ограничивается отдельно от загрузок.
     extraction_packets: int = field(
         default_factory=lambda: _env_num("RADAR_EXTRACTION_PACKETS", 200))
     # Три документа с одного сайта — это один голос, а не три подтверждения. Репозитории
@@ -84,11 +85,11 @@ class Limits:
 
 @dataclass(frozen=True)
 class Prices:
-    """Тарифы из раздела 12 основного отчёта, проверены 17.09.2026."""
+    """Расчётные цены в рублях. Для другого провайдера задайте его тарифы."""
 
-    search_call_rub: float = 0.488
-    llm_input_rub_per_mtok: float = 200.0
-    llm_output_rub_per_mtok: float = 300.0
+    search_call_rub: float = field(default_factory=lambda: _env_num("RADAR_PRICE_SEARCH", 0.488, float))
+    llm_input_rub_per_mtok: float = field(default_factory=lambda: _env_num("RADAR_PRICE_INPUT_MTOK", 200.0, float))
+    llm_output_rub_per_mtok: float = field(default_factory=lambda: _env_num("RADAR_PRICE_OUTPUT_MTOK", 300.0, float))
 
 
 @dataclass
@@ -97,14 +98,14 @@ class Settings:
 
     """Доступы берутся только из окружения. Ключи в файлы прогонов не попадают."""
 
-    yandex_api_key: str | None = field(default_factory=lambda: os.getenv("YANDEX_API_KEY"))
+    yandex_api_key: str | None = field(default_factory=lambda: os.getenv("YANDEX_API_KEY"), repr=False)
     yandex_folder_id: str | None = field(default_factory=lambda: os.getenv("YANDEX_FOLDER_ID"))
-    model_uri_template: str = os.getenv("RADAR_MODEL", "gpt://{folder}/qwen3.6-35b-a3b")
+    model_uri_template: str = field(default_factory=lambda: os.getenv("RADAR_MODEL") or "gpt://{folder}/qwen3.6-35b-a3b")
     search_endpoint: str = "https://searchapi.api.cloud.yandex.net/v2/web/search"
-    llm_endpoint: str = "https://llm.api.cloud.yandex.net/v1/chat/completions"  # OpenAI-совместимый: Qwen доступна только здесь
-    user_agent: str = os.getenv(
-        "RADAR_UA", "MacroMindRadar/0.1 (hackathon LCT-2026; contact: team@macromind.local)"
-    )
+    llm_endpoint: str = field(default_factory=lambda: os.getenv("RADAR_LLM_URL") or "https://llm.api.cloud.yandex.net/v1/chat/completions")
+    llm_timeout_s: float = field(default_factory=lambda: _env_num("RADAR_LLM_TIMEOUT_S", 90.0, float))
+    llm_api_key: str | None = field(default_factory=lambda: os.getenv("RADAR_LLM_API_KEY"), repr=False)
+    user_agent: str = field(default_factory=lambda: os.getenv("RADAR_UA") or "TechTrendSearcher/0.1")
     limits: Limits = field(default_factory=Limits)
     prices: Prices = field(default_factory=Prices)
 
@@ -114,20 +115,33 @@ class Settings:
 
     @property
     def model_uri(self) -> str:
-        return self.model_uri_template.format(folder=self.yandex_folder_id or "NO_FOLDER")
+        return self.model_uri_template.replace("{folder}", self.yandex_folder_id or "NO_FOLDER")
 
+    @property
+    def is_yandex_llm(self) -> bool:
+        return urlparse(self.llm_endpoint).hostname == "llm.api.cloud.yandex.net"
 
-def load_env_file(path: Path | None = None) -> None:
-    """Читает hackathon/.env в окружение. Ключи в коде и артефактах не храним."""
-    env = path or (ROOT / ".env")
-    if not env.exists():
-        return
-    for line in env.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+    @property
+    def llm_headers(self) -> dict[str, str]:
+        # Ключ поиска никогда не отправляется стороннему серверу модели.
+        key = self.llm_api_key or (self.yandex_api_key if self.is_yandex_llm else None)
+        scheme = os.getenv("RADAR_LLM_AUTH_SCHEME") or ("Api-Key" if self.is_yandex_llm else "Bearer")
+        return {"Authorization": f"{scheme} {key}"} if key else {}
+
+    @property
+    def reasoning_effort(self) -> str | None:
+        return os.getenv("RADAR_LLM_REASONING_EFFORT") or ("none" if self.is_yandex_llm else None)
+
+    def validate_llm(self) -> None:
+        endpoint = urlparse(self.llm_endpoint)
+        if endpoint.scheme not in ("http", "https") or not endpoint.hostname:
+            raise ValueError("RADAR_LLM_URL должен быть HTTP(S)-адресом chat/completions")
+        if endpoint.username or endpoint.password or endpoint.query or endpoint.fragment:
+            raise ValueError("В RADAR_LLM_URL нельзя передавать ключ; используйте RADAR_LLM_API_KEY")
+        if self.is_yandex_llm and (not self.llm_headers or "NO_FOLDER" in self.model_uri):
+            raise ValueError("Укажите ключ модели и YANDEX_FOLDER_ID для Yandex AI Studio")
+        if not self.is_yandex_llm and self.model_uri.startswith("gpt://"):
+            raise ValueError("Для своего сервера задайте RADAR_MODEL — имя установленной модели")
 
 
 def utcnow() -> str:
@@ -179,8 +193,7 @@ class DocumentSnapshot(BaseModel):
     lang: str | None = None
     published_at: str | None = None
     # Дата из метаданных PDF. Держится отдельно от `published_at` и НЕ попадает в
-    # промпт извлечения: возражение Codex 27.09.2026 верное — это дата вёрстки или
-    # пересоздания файла, и проверка диапазона лет её датой публикации не делает.
+    # промпт извлечения: дата создания файла может отличаться от даты публикации.
     # Сохраняем для аудита, для свежести и возраста термина не используем.
     pdf_creation_date: str | None = None
     retrieved_at: str = Field(default_factory=utcnow)

@@ -1,0 +1,41 @@
+services:
+  radar:
+    build:
+      context: .
+      dockerfile: hackathon/Dockerfile
+    ports:
+      - "127.0.0.1:${RADAR_PORT:-8000}:8000"
+    environment:
+      RADAR_DEMO: ${RADAR_DEMO:-1}
+      RADAR_RUNS_DIR: /app/radar-runs
+      RADAR_UI_DIR: /app/ui
+      YANDEX_API_KEY: ${YANDEX_API_KEY:-}
+      YANDEX_FOLDER_ID: ${YANDEX_FOLDER_ID:-}
+      OPENALEX_API_KEY: ${OPENALEX_API_KEY:-}
+      RADAR_MODEL: ${RADAR_MODEL:-}
+      RADAR_LLM_URL: ${RADAR_LLM_URL:-https://llm.api.cloud.yandex.net/v1/chat/completions}
+      RADAR_LLM_TIMEOUT_S: ${RADAR_LLM_TIMEOUT_S:-90}
+      RADAR_LLM_API_KEY: ${RADAR_LLM_API_KEY:-}
+      RADAR_LLM_AUTH_SCHEME: ${RADAR_LLM_AUTH_SCHEME:-}
+      RADAR_LLM_REASONING_EFFORT: ${RADAR_LLM_REASONING_EFFORT:-}
+      RADAR_PRICE_SEARCH: ${RADAR_PRICE_SEARCH:-0.488}
+      RADAR_PRICE_INPUT_MTOK: ${RADAR_PRICE_INPUT_MTOK:-200}
+      RADAR_PRICE_OUTPUT_MTOK: ${RADAR_PRICE_OUTPUT_MTOK:-300}
+      RADAR_RUN_COST_SEARCH: ${RADAR_RUN_COST_SEARCH:-60}
+      RADAR_RUN_COST_LLM: ${RADAR_RUN_COST_LLM:-200}
+      RADAR_EXTRACTION_PACKETS: ${RADAR_EXTRACTION_PACKETS:-200}
+      RADAR_MAX_PER_SOURCE: ${RADAR_MAX_PER_SOURCE:-999}
+      RADAR_MIN_PUBLISHED: ${RADAR_MIN_PUBLISHED-2024-01-01}
+      RADAR_RUN_DEADLINE_S: ${RADAR_RUN_DEADLINE_S:-3600}
+      RADAR_DAILY_RUNS: ${RADAR_DAILY_RUNS:-6}
+      RADAR_IP_DAILY_RUNS: ${RADAR_IP_DAILY_RUNS:-2}
+      RADAR_RUN_TIMEOUT: ${RADAR_RUN_TIMEOUT:-1200}
+      RADAR_PUBLIC_TOKEN: ${RADAR_PUBLIC_TOKEN:-}
+      RADAR_CORS_ORIGINS: ${RADAR_CORS_ORIGINS:-http://127.0.0.1:5174,http://localhost:5174}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - radar-data:/app/radar-runs
+    restart: unless-stopped
+volumes:
+  radar-data:

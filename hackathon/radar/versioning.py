@@ -11,6 +11,7 @@ def pool_signature(settings, plan="tree", lenses=("product", "funding", "standar
     from .selection import VERSION as selection_version
     payload = {"version": POOL_VERSION, "plan": plan, "discovery": discovery_version,
                "selection": selection_version, "extraction": PROMPT_VERSION,
-               "model": settings.model_uri, "limits": settings.limits.__dict__,
+               "model": settings.model_uri, "endpoint": settings.llm_endpoint,
+               "reasoning_effort": settings.reasoning_effort, "limits": settings.limits.__dict__,
                "lenses": "tree_schedule" if plan == "tree" else list(lenses)}
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()

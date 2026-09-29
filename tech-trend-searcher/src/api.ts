@@ -1,11 +1,4 @@
-/**
- * Связь с сервисом радара. Заказчик проверяет решение открытым запросом, поэтому
- * интерфейс обязан запускать настоящий конвейер, а не показывать выгруженный файл.
- *
- * Если сервис не запущен, интерфейс продолжает работать на сохранённой выгрузке и
- * честно об этом сообщает: на защите лучше показать прошлый прогон с пометкой, чем
- * пустой экран.
- */
+/** HTTP-клиент сервиса анализа. */
 import type { Trend } from "./data";
 
 // Три случая:
@@ -59,6 +52,8 @@ export interface JobState {
   funnel?: Record<string, number>;
   plan?: string[];
   error?: string;
+  timeout_notice?: string;
+  demo?: boolean;
 }
 
 export async function apiAvailable(): Promise<boolean> {
@@ -74,7 +69,8 @@ export async function apiAvailable(): Promise<boolean> {
 export async function startSearch(query: string, force = false): Promise<string> {
   const res = await fetch(`${BASE}/api/search`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json",
+      ...(sessionStorage.getItem("radar-token") ? { "x-radar-token": sessionStorage.getItem("radar-token")! } : {}) },
     body: JSON.stringify({ query, plan: "tree", force }),
   });
   if (!res.ok) {
@@ -96,6 +92,7 @@ export async function startSearch(query: string, force = false): Promise<string>
 
 /** Остаток бюджета и квоты публичного сервиса: показывается аналитику до запуска. */
 export interface Limits {
+  demo: boolean;
   budget: { known: boolean; search?: number; llm?: number; runs_left?: number };
   quota: {
     runs_today: number;

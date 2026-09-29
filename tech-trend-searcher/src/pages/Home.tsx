@@ -26,6 +26,7 @@ export function Home() {
   useEffect(() => {
     void fetchLimits().then(setLimits);
   }, []);
+  const [token, setToken] = useState(() => sessionStorage.getItem("radar-token") ?? "");
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
 
@@ -49,7 +50,7 @@ export function Home() {
     }
     try {
       const jobId = await startSearch(next);
-      setJob({ id: jobId, query: next, status: "running", stage: "поставлено в очередь", cached: false });
+      setJob({ id: jobId, query: next, status: "running", stage: "поставлено в очередь", cached: false, demo: limits?.demo ?? false });
       navigate("/progress");
     } catch (e) {
       setError(`Не удалось запустить поиск: ${(e as Error).message}`);
@@ -76,22 +77,33 @@ export function Home() {
               {busy ? "Запускаю…" : "Найти сигналы"}
             </Button>
           </div>
+          {limits?.token_required && (
+            <label className="tiny" style={{ display: "block", marginTop: 12 }}>
+              Токен доступа
+              <input className="field" type="password" value={token} autoComplete="off"
+                onChange={(e) => { setToken(e.target.value); sessionStorage.setItem("radar-token", e.target.value); }} />
+            </label>
+          )}
+          {limits?.demo && (
+            <p className="notice">Деморежим: доступен сохранённый пример Edge от 29 сентября 2026 года.
+              Новые запросы не выполняются, ключи и оплата не нужны.</p>
+          )}
           {error && <p className="err">{error}</p>}
-          {limits && limits.budget.known && (
+          {limits && !limits.demo && limits.budget.known && (
             <p className="tiny">
               {(limits.budget.runs_left ?? 0) > 0 ? (
                 <>
                   Живой прогон доступен: сегодня запущено {limits.quota.runs_today} из{" "}
-                  {limits.quota.daily_limit}, бюджета хватает ещё на{" "}
-                  {limits.budget.runs_left} прогон(ов). Прогон занимает 7–11 минут; повтор
-                  уже посчитанного запроса бесплатен и отвечает за секунду.
+                  {limits.quota.daily_limit}, расчётного бюджета достаточно примерно на{" "}
+                  {limits.budget.runs_left} прогон(ов). Время и стоимость зависят от темы и модели. Готовый совместимый
+                  разбор открывается без пересчёта.
                 </>
               ) : (
                 <>
                   Живые прогоны сейчас недоступны: бюджета не хватает на полный прогон
                   (поиск {Math.round(limits.budget.search ?? 0)} ₽, модель{" "}
                   {Math.round(limits.budget.llm ?? 0)} ₽). Сохранённые разборы открыты и
-                  бесплатны — направления ниже.
+                  бесплатны, если уже сохранены на сервере.
                 </>
               )}
               {limits.running > 0 && " Сейчас считается другой запрос: очередь на один анализ."}
@@ -112,16 +124,13 @@ export function Home() {
                 </Button>
               </div>
               <p className="hint">
-                Свой запрос считается на локальной копии: <code>cd hackathon</code> →{" "}
-                <code>.venv/bin/python -m radar.server</code>, затем{" "}
-                <code>npm run dev</code> в <code>tech-trend-searcher</code>. Опубликованная
-                страница к локальному сервису обратиться не может: браузер блокирует
-                http-запрос со https-страницы. Инструкция — в README репозитория.
+                Для нового анализа запустите сервис по инструкции README репозитория
+                или проверьте подключение к серверу. Сохранённый пример не обновляется автоматически.
               </p>
             </div>
           )}
           <div className="chips">
-            {chips.map((item) => (
+            {(limits?.demo ? ["Edge"] : chips).map((item) => (
               <button key={item} className="chip" onClick={() => void start(item)}>
                 {item}
               </button>

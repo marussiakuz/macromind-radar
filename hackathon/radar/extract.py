@@ -1,9 +1,6 @@
-"""Извлечение технологических категорий из одного документа и склейка кандидатов.
+"""Извлечение категорий из документов. Цитаты сверяются с исходным текстом.
 
-Промпт и правила — раздел 4 файла review-sources-pipeline.md. Текст документа
-передаётся отдельным блоком данных: инструкции внутри страницы выполнять нельзя.
-Цитата принимается только если дословно найдена в своём спане.
-"""
+Содержимое документов передаётся модели как данные, а не как инструкции."""
 from __future__ import annotations
 
 import json
@@ -124,25 +121,18 @@ class LLM(Protocol):
 
 
 class YandexLLM:
-    """Yandex AI Studio. Поля запроса проверить на первом живом вызове."""
+    """Клиент Chat Completions; имя класса сохранено для совместимости модулей."""
 
     def __init__(self, settings: Settings, temperature: float = 0.0, max_tokens: int = 2000):
-        if not settings.has_keys:
-            raise RuntimeError("нет YANDEX_API_KEY или YANDEX_FOLDER_ID")
+        settings.validate_llm()
         self.s = settings
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.spent_rub = 0.0
-        self._client = httpx.Client(timeout=httpx.Timeout(90.0))
+        self._client = httpx.Client(timeout=httpx.Timeout(settings.llm_timeout_s))
 
     def complete(self, system: str, payload: dict) -> tuple[str, int, int]:
-        """Вызов через OpenAI-совместимый эндпоинт.
-
-        Проверено 26.09.2026: Qwen3.6-35B-A3B доступна только по этому пути, а по
-        умолчанию отвечает в режиме рассуждений — `content` пустой, все токены
-        уходят в `reasoning_content`. Параметр reasoning_effort="none" выключает
-        рассуждения: 3 токена ответа вместо 64 на том же запросе.
-        """
+        """Запрос к выбранной модели с отдельным кэшем и учётом расходов."""
         body = {
             "model": self.s.model_uri,
             "messages": [
@@ -151,9 +141,12 @@ class YandexLLM:
             ],
             "max_tokens": self.max_tokens,
             "temperature": self.temperature,
-            "reasoning_effort": "none",
         }
-        cache_key = hashlib.sha256(json.dumps(body, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
+        if self.s.reasoning_effort:
+            body["reasoning_effort"] = self.s.reasoning_effort
+        cache_key = hashlib.sha256(json.dumps(
+            {"endpoint": self.s.llm_endpoint, "request": body},
+            ensure_ascii=False, sort_keys=True).encode()).hexdigest()
         cache = RUNS_DIR / '.completion-cache' / (cache_key + '.json')
         if cache.exists():
             try:
@@ -169,19 +162,19 @@ class YandexLLM:
         # разница возвращается по фактическим токенам из `usage`.
         from .ledger import llm_cost, shared as _ledger
         approx_in = len(json.dumps(body, ensure_ascii=False)) // 3
-        worst = llm_cost(approx_in, self.max_tokens)
+        worst = llm_cost(approx_in, self.max_tokens, self.s.prices)
         with _ledger().paid(worst, "llm", f"llm:{system[:40]}") as _spent:
             self.spent_rub += worst
             r = self._client.post(
                 self.s.llm_endpoint,
-                headers={"Authorization": f"Api-Key {self.s.yandex_api_key}"},
+                headers=self.s.llm_headers,
                 json=body,
             )
             r.raise_for_status()
             data = r.json()
             _usage = data.get("usage", {})
             if all(type(_usage.get(k)) is int for k in ('prompt_tokens', 'completion_tokens')):
-                _spent["actual"] = llm_cost(_usage['prompt_tokens'], _usage['completion_tokens'])
+                _spent["actual"] = llm_cost(_usage['prompt_tokens'], _usage['completion_tokens'], self.s.prices)
                 self.spent_rub += _spent['actual'] - worst
         message = data["choices"][0]["message"]
         text = message.get("content") or ""
@@ -211,6 +204,11 @@ class FixtureLLM:
         if answer is None:
             answer = ('{"document_id":"%s","candidates":[],'
                       '"no_technology_reason":"фикстуры нет","has_more_candidates":false}' % key)
+        # В статическом шаблоне пустой ID означает документ текущего запроса.
+        data = json.loads(answer)
+        if data.get("document_id") == "":
+            data["document_id"] = key
+            answer = json.dumps(data, ensure_ascii=False)
         return answer, 0, 0
 
 

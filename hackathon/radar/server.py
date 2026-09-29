@@ -1,17 +1,4 @@
-"""HTTP-сервис радара: открытый запрос пользователя запускает настоящий конвейер.
-
-Заказчик проверяет решение открытым запросом и прямо называет примеры вне таблицы —
-«слабые сигналы в 3D-печати», «Микрофлюидный чип», «Гардрейл». Статическая выгрузка
-результатов этого не выдерживает: что ни введи, показывается один и тот же прогон.
-Поэтому здесь запрос запускает конвейер, а интерфейс опрашивает состояние.
-
-Прогон занимает минуты и стоит денег, поэтому:
-  * результат по запросу кешируется и повторный запрос отдаётся мгновенно;
-  * есть демонстрационный режим: запрос отдаёт сохранённый прогон, ничего не тратя.
-
-    .venv/bin/python -m radar.server            # 127.0.0.1:8000
-    RADAR_DEMO=1 .venv/bin/python -m radar.server   # только сохранённые прогоны
-"""
+"""HTTP API: запуск анализа, состояние задач и просмотр сохранённых результатов."""
 from __future__ import annotations
 
 import json
@@ -25,7 +12,9 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
+from typing import Literal
 
 from .config import RUNS_DIR, Settings, load_env_file
 from .export_ui import to_trend
@@ -46,7 +35,7 @@ from .reference import load_reference
 from .search import MultiSearch, YandexSearch
 
 app = FastAPI(title="Радар слабых сигналов")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(CORSMiddleware, allow_origins=[x.strip() for x in os.getenv("RADAR_CORS_ORIGINS", "http://127.0.0.1:5174,http://localhost:5174").split(",") if x.strip()], allow_methods=["*"], allow_headers=["*"])
 
 def maturity_version() -> str:
     return maturity_version_value
@@ -89,8 +78,8 @@ _WORK_LOCK = threading.Lock()
 
 
 class SearchRequest(BaseModel):
-    query: str
-    plan: str = "tree"          # tree | mixed | pains | segments
+    query: str = Field(max_length=500)
+    plan: Literal["tree", "mixed", "pains", "segments"] = "tree"          # tree | mixed | pains | segments
     demo: bool = False
     # Аналитик может ввести что угодно, и на непригодном запросе прогон стоит около 90 ₽ и
     # пятнадцать минут. Привратник проверяет запрос двумя поисковыми вызовами и отвечает
@@ -112,6 +101,23 @@ def known_area(query: str) -> str:
     return ""
 
 
+def saved_run_dirs(include_samples: bool = False) -> list[Path]:
+    roots = [RUNS_DIR]
+    if include_samples:
+        roots.append(Path(__file__).resolve().parent.parent / "samples")
+    return [p for root in roots for p in sorted(root.glob("*"), reverse=True) if p.is_dir()]
+
+
+def saved_cards(run: Path, *, allow_legacy: bool = False) -> dict | None:
+    try:
+        data = json.loads((run / "cards.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(data, dict) or not isinstance(data.get("trends"), list):
+        return None
+    return data if allow_legacy or data.get("version") == CARDS_VERSION else None
+
+
 def cached_run(query: str, *, plan="tree", allow_legacy=False, settings=None) -> Path | None:
     """Use compatible pools; old demos remain readable only by explicit offline policy."""
     from .versioning import pool_signature
@@ -120,18 +126,20 @@ def cached_run(query: str, *, plan="tree", allow_legacy=False, settings=None) ->
         settings = Settings()
     signature = pool_signature(settings, plan)
     best = None
-    for run in sorted(RUNS_DIR.glob("2026*"), reverse=True):
+    for run in saved_run_dirs(include_samples=allow_legacy):
         manifest = run / "manifest.json"
         if not manifest.exists() or not (run / "candidates.jsonl").exists():
             continue
         try:
             data = json.loads(manifest.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
+        except (OSError, json.JSONDecodeError):
             continue
-        if data.get('mode') != 'live':
+        if not isinstance(data, dict) or data.get('mode') != 'live':
             continue
         compatible = data.get('pool_signature') == signature and data.get('execution_complete') is True
         if not allow_legacy and not compatible:
+            continue
+        if allow_legacy and saved_cards(run, allow_legacy=True) is None:
             continue
         if (data.get("query", "").strip().lower() == query.strip().lower()
                 or data.get('area', '').strip().lower() == query.strip().lower()):
@@ -516,15 +524,17 @@ def worker(job_id: str, request: SearchRequest) -> None:
     try:
         load_env_file()
         settings = Settings()
+        offline = request.demo or DEMO or os.environ.get("RADAR_CACHE_ONLY") == "1"
         run = cached_run(request.query, plan=request.plan, settings=settings,
-                         allow_legacy=request.demo or DEMO or os.environ.get("RADAR_CACHE_ONLY") == "1")
+                         allow_legacy=offline)
         if run is not None:
             job["stage"] = "найден сохранённый прогон"
             job["cached"] = True
-        elif request.demo or DEMO:
+        elif offline:
             raise RuntimeError("демонстрационный режим: сохранённого прогона по этому запросу нет")
         else:
-            # Привратник до расходов. Два поисковых вызова против девяноста рублей прогона.
+            settings.validate_llm()
+            # Проверяем смысл запроса перед основным поиском.
             if not request.force:
                 job["stage"] = "проверка запроса"
                 searcher_probe = MultiSearch(YandexSearch(settings, cache_dir=RUNS_DIR / "gate-cache"))
@@ -544,23 +554,17 @@ def worker(job_id: str, request: SearchRequest) -> None:
             run = run_pool(known_area(request.query), request.query, "live", settings,
                            plan=request.plan)
         job["run_id"] = run.name
-        # Повторный запрос раньше заново собирал карточки: 4–5 минут и платные вызовы
-        # модели на уже посчитанном пуле. Для живого показа это плохо — жюри ждёт и
-        # каждый повтор стоит денег. Готовые карточки складываем рядом с прогоном.
-        cards_file = run / "cards.json"
-        if cards_file.exists():
-            try:
-                saved = json.loads(cards_file.read_text(encoding="utf-8"))
-            except json.JSONDecodeError:
-                saved = {}
-            if saved.get("version") == CARDS_VERSION and isinstance(saved.get("trends"), list):
-                job.update({k: v for k, v in saved.items() if k != "version"})
-                job["cards_from_cache"] = True
-                job["stage"] = "показан сохранённый разбор этого прогона"
-                job["funnel"] = saved.get("funnel") or {}
-                job["status"] = "completed"
-                job["finished"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
-                return
+        saved = saved_cards(run, allow_legacy=offline)
+        if saved is not None:
+            job.update({k: v for k, v in saved.items() if k != "version"})
+            job.update(cards_from_cache=True, demo=bool(offline),
+                       saved_version=saved.get("version"),
+                       stage="показан сохранённый разбор", status="completed",
+                       finished=datetime.now(timezone.utc).isoformat(timespec="seconds"))
+            job["funnel"] = saved.get("funnel") or {}
+            return
+        if offline:
+            raise RuntimeError("Для этого примера нет готовых карточек; пересчёт в деморежиме отключён")
         # Поисковик для второго хопа создаётся здесь, а не внутри run_pool: по
         # сохранённому прогону конвейер не запускается, а игроков искать всё равно нужно.
         # Кеш кладём в тот же прогон, поэтому повторный запрос не платит за те же запросы.
@@ -626,20 +630,20 @@ def status(job_id: str) -> dict:
     job = JOBS.get(job_id)
     if job is None:
         raise HTTPException(404, "задание не найдено")
-    return job
+    return {k: v for k, v in job.items() if not k.startswith("_") and k != "trace"}
 
 
 @app.get("/api/runs")
 def runs() -> list[dict]:
     """Сохранённые прогоны: их можно открыть мгновенно и без расходов."""
     out = []
-    for run in sorted(RUNS_DIR.glob("2026*"), reverse=True)[:40]:
+    for run in saved_run_dirs(include_samples=DEMO)[:40]:
         manifest = run / "manifest.json"
         if not manifest.exists():
             continue
         try:
             data = json.loads(manifest.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
+        except (OSError, json.JSONDecodeError):
             continue
         out.append({"run_id": data.get("run_id"), "query": data.get("query"),
                     "area": data.get("area"), "finished": data.get("finished_at"),
@@ -649,7 +653,12 @@ def runs() -> list[dict]:
 
 @app.get("/api/health")
 def health() -> dict:
-    return {"ok": True, "demo": DEMO, "runs": len(list(RUNS_DIR.glob("2026*")))}
+    return {"ok": True, "demo": DEMO, "runs": len(runs()), "model": Settings().model_uri}
+
+
+ui_dir = Path(os.getenv("RADAR_UI_DIR") or Path(__file__).resolve().parents[2] / "tech-trend-searcher" / "dist")
+if (ui_dir / "index.html").is_file():
+    app.mount("/", StaticFiles(directory=ui_dir, html=True), name="frontend")
 
 
 if __name__ == "__main__":  # pragma: no cover

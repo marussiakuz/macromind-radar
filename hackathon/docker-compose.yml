@@ -1,50 +1,21 @@
-# Публичный MVP: сервис радара + HTTPS-прокси.
-#
-# Ключи берутся из файла .env рядом с этим файлом (в репозиторий он не попадает).
-# Адрес задаётся переменной RADAR_HOST: Caddy сам получит сертификат Let's Encrypt.
+# HTTPS-дополнение. Запускать из корня вместе с основным docker-compose.yml.
 services:
   radar:
-    build: .
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      # Ограничители публичного адреса. Считаны из фактической стоимости прогона
-      # (замер 28.09.2026: 89,7 ₽ — около 60 ₽ поиска и около 30 ₽ модели).
-      RADAR_DAILY_RUNS: "${RADAR_DAILY_RUNS:-6}"
-      RADAR_IP_DAILY_RUNS: "${RADAR_IP_DAILY_RUNS:-2}"
-      RADAR_RUN_TIMEOUT: "${RADAR_RUN_TIMEOUT:-1200}"
-      RADAR_RUN_COST_SEARCH: "${RADAR_RUN_COST_SEARCH:-60}"
-      RADAR_RUN_COST_LLM: "${RADAR_RUN_COST_LLM:-30}"
-      # Пустой токен — открытый доступ. Задать, если бюджет нужно отдать только жюри.
-      RADAR_PUBLIC_TOKEN: "${RADAR_PUBLIC_TOKEN:-}"
-    volumes:
-      # Состояние: учёт расходов, квота, сохранённые разборы.
-      - ./radar-runs:/app/radar-runs
-    expose:
-      - "8000"
-
+    command: ["uvicorn", "radar.public:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
   caddy:
     image: caddy:2-alpine
-    restart: unless-stopped
-    depends_on:
-      - radar
     environment:
-      RADAR_HOST: "${RADAR_HOST}"
-      RADAR_ALT_HOST: "${RADAR_ALT_HOST:-158-160-50-0.sslip.io}"
-      MM_HOST: "${MM_HOST:-macromind.158-160-50-0.sslip.io}"
+      RADAR_HOST: ${RADAR_HOST:?Set RADAR_HOST in the root .env file}
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      # Собранный интерфейс: тот же адрес, что и сервис, поэтому ни CORS, ни смешанного
-      # содержимого не возникает.
-      - ./ui:/srv/ui:ro
-      # Прототип продукта MacroMind — отдельный сайт на своём имени.
-      - ./ui-macromind:/srv/macromind:ro
+      - ./hackathon/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
       - caddy-config:/config
-
+    depends_on:
+      - radar
+    restart: unless-stopped
 volumes:
   caddy-data:
   caddy-config:

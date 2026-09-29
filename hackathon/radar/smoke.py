@@ -1,15 +1,7 @@
-"""Проверка Yandex Search API тремя ступенями.
+"""Диагностика Yandex Search API.
 
-Адаптер написан по документации и живым вызовом не проверялся, поэтому первая
-ступень смотрит на сырой ответ: состав JSON, декодирование Base64, разбор XML.
-Каждая ступень тратит деньги, поэтому запускается отдельно и только с --confirm.
-
-    python -m radar.smoke one     --confirm
-    python -m radar.smoke queries --confirm --area "Защита ИИ"
-    python -m radar.smoke load    --confirm
-
-Ключи берутся из hackathon/.env и в артефакты прогона не попадают.
-"""
+Команды выполняют реальные платные запросы и требуют --confirm. Для обычной
+проверки установки используйте деморежим и тесты вместо этого модуля."""
 from __future__ import annotations
 
 import argparse
@@ -32,7 +24,7 @@ from .evaluate import name_similarity
 from .reference import area_items, load_reference, normalize_tokens
 from .search import LENSES, parse_yandex_xml
 
-PRICE_PER_CALL = 0.488  # ₽, дневной синхронный тариф по разделу 12 отчёта
+PRICE_PER_CALL = 0.488  # расчётная цена для диагностического отчёта
 
 
 def _out_dir() -> Path:
@@ -65,12 +57,15 @@ def _body(s: Settings, query: str, lang: str) -> dict:
 
 def _post(s: Settings, query: str, lang: str, timeout: float = 30.0) -> tuple[httpx.Response, float]:
     started = time.monotonic()
-    r = httpx.post(
-        s.search_endpoint,
-        headers={"Authorization": f"Api-Key {s.yandex_api_key}"},
-        json=_body(s, query, lang),
-        timeout=timeout,
-    )
+    from .ledger import shared
+    with shared().paid(s.prices.search_call_rub, "search", "smoke search"):
+        r = httpx.post(
+            s.search_endpoint,
+            headers={"Authorization": f"Api-Key {s.yandex_api_key}"},
+            json=_body(s, query, lang),
+            timeout=timeout,
+        )
+
     return r, time.monotonic() - started
 
 

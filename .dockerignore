@@ -1,0 +1,19 @@
+# В сборку входят только исходники приложения и публичный пример.
+**
+!hackathon/
+!hackathon/Dockerfile
+!hackathon/requirements.txt
+!hackathon/radar/
+!hackathon/radar/**
+!hackathon/samples/
+!hackathon/samples/**
+!tech-trend-searcher/
+!tech-trend-searcher/package.json
+!tech-trend-searcher/package-lock.json
+!tech-trend-searcher/index.html
+!tech-trend-searcher/tsconfig.json
+!tech-trend-searcher/vite.config.ts
+!tech-trend-searcher/src/
+!tech-trend-searcher/src/**
+**/__pycache__/
+hackathon/radar/eval/

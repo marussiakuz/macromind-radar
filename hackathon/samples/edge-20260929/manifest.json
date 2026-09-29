@@ -1,0 +1,49 @@
+{
+  "run_id": "20260929-074558-edge",
+  "area": "Edge",
+  "query": "Edge computing и периферийный искусственный интеллект",
+  "mode": "live",
+  "started_at": "2026-09-29T07:50:00+00:00",
+  "finished_at": "2026-09-29T07:50:00+00:00",
+  "cutoff": "2026-09-29",
+  "model": "gpt://<folder_id>/qwen3.6-35b-a3b",
+  "prompt_version": "extract/0.3",
+  "reference_sha256": "1349a208671cf9db9b036d9d137036fc8471297b6ec04fce0fc864e75e02ed03",
+  "limits": {
+    "discovery_queries": 60,
+    "results_per_query": 10,
+    "fetch_attempts": 200,
+    "max_per_owner": 4,
+    "extraction_packets": 40,
+    "fetch_timeout_s": 12.0,
+    "max_redirects": 3,
+    "max_html_bytes": 5242880,
+    "max_pdf_bytes": 15728640,
+    "per_origin_delay_s": 5.0,
+    "concurrency": 8,
+    "run_deadline_s": 1200.0
+  },
+  "counters": {
+    "queries": 56,
+    "hits": 560,
+    "unique_urls": 200,
+    "fetch_attempts": 162,
+    "from_api": 38,
+    "fetched_ok": 167,
+    "parsed_ok": 161,
+    "extracted_candidates": 65,
+    "after_merge": 65,
+    "matched_reference": 0,
+    "notes": [
+      "подсегменты: discovery-tree/3, Spiking Neural Network Inference Engines, On-Sensor Feature Extraction, Resistive RAM (ReRAM) Matrix Multipliers, Differential Privacy Noise Injection at Edge, UAV-HAP Cooperative Edge Resource Allocation, Hardware Root of Trust and Secure Boot Chains, Dynamic Model Partitioning for Latency-Aware Inference, Integer Quantization and Pruning for 8-bit MCUs, Deterministic Real-Time Inference Schedulers, RF Energy Harvesting for Passive IoT Sensors, Event-Based Vision Sensor Integration, Near-Sensor FPGA Acceleration, SRAM-based Near-Memory Compute Units, Homomorphic Encryption for Secure Aggregation, Deadline-Constrained VM Task Scheduling via Graph Neural Networks, Trusted Execution Environments for Model Isolation, Hierarchical Feature Aggregation in Multi-Access Edge Networks, TinyML Runtime Inference Engines, Multi-Modal Sensor Fusion Middleware, Vibration-Driven Piezoelectric Micro-Generators, On-Device Neuromorphic Learning Modules, Smart Sensor Data Governance, Hybrid Digital-Analog CIM Controllers, On-Device Data Governance and Policy Enforcement, Cross-Platform Edge AI Deployment Frameworks, Side-Channel Attack Mitigation Circuits, Bandwidth-Optimized Intermediate State Transmission, Knowledge Distillation for Edge Microcontrollers, SWaP-Optimized Edge AI Accelerators, Thermoelectric Generators for Industrial Edge Nodes, Sub-Threshold CMOS Neuromorphic Circuits, Event-Based Vision Pre-Processing",
+      "линзы: product, funding, standard, research",
+      "на извлечение отобрано 40 из 161 документов по разнообразию запросов и хостов",
+      "бесплатных вызовов источников: 14"
+    ],
+    "input_tokens": 128546,
+    "output_tokens": 23529,
+    "search_calls": 52,
+    "free_search_calls": 14
+  },
+  "cost_rub": 58.14
+}
