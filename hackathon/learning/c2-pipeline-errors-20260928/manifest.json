@@ -1,0 +1,54 @@
+{
+  "schema_version": "radar-evidence-dataset/1.0",
+  "cohort": "C2",
+  "built_on": "2026-09-28",
+  "types_from_brief_not_represented": [
+    "name_broader_than_source",
+    "application_from_other_area"
+  ],
+  "why_not_represented": "машинных вердиктов «громко: термин слишком общий» и «сомнение в принадлежности области» в сохранённых разборах нет: после правок 28.09 такие кандидаты отбраковываются раньше, по возрасту термина. Эти два типа добираются новым прогоном, синтетикой не заменены.",
+  "cutoff": "2026-09-27",
+  "records": 44,
+  "records_are_human_labelled": false,
+  "paid_api_calls": 0,
+  "candidate_rows_available": 1251,
+  "detected_by_type": {
+    "broad_topic_no_mechanism": 205,
+    "attack_instead_of_defense": 23,
+    "review_not_new_result": 127,
+    "general_advice_not_technology": 12,
+    "promise_not_event": 12,
+    "wrong_date_or_scale": 62,
+    "measurement_failure_not_card_defect": 13
+  },
+  "selected_by_type": {
+    "broad_topic_no_mechanism": 7,
+    "review_not_new_result": 7,
+    "wrong_date_or_scale": 6,
+    "attack_instead_of_defense": 6,
+    "measurement_failure_not_card_defect": 6,
+    "general_advice_not_technology": 6,
+    "promise_not_event": 6
+  },
+  "by_area": {
+    "Финтех": 10,
+    "Защита ИИ": 31,
+    "Биотехнологии и генетика (открытый запрос, вне таблицы)": 3
+  },
+  "by_run": {
+    "20260926-182222-финтех": 3,
+    "20260926-110340-защита": 5,
+    "20260927-082453-финтех": 7,
+    "20260926-091119-защита": 3,
+    "20260927-083230-защита": 10,
+    "20260926-092118-защита": 3,
+    "20260926-182214-защита": 3,
+    "20260926-092705-защита": 5,
+    "20260927-103049-биотехнологии": 1,
+    "20260926-181346-защита": 2,
+    "20260927-102941-биотехнологии": 2
+  },
+  "families": 44,
+  "sources_unique": 42,
+  "note": "Проблемные карточки живого конвейера. Типы дефектов предложены по обнаружимым признакам и являются гипотезами; окончательное решение за человеком. Отказ по измерению не считается дефектом карточки."
+}

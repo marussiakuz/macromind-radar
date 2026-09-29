@@ -7,13 +7,15 @@ from __future__ import annotations
 
 import base64
 import json
+import hashlib
 from pathlib import Path
+from datetime import datetime, timezone
 from typing import Protocol
 
 import httpx
 from lxml import etree
 
-from .config import SearchHit, Settings
+from .config import SearchHit, Settings, RUNS_DIR
 
 # Две линзы из раздела 1.2 ответа GPT: технический механизм и рынок.
 LENSES: dict[str, dict[str, str]] = {
@@ -150,6 +152,10 @@ class MultiSearch:
                    if getattr(p, "paid", True))
 
     @property
+    def spent_rub(self) -> float:
+        return sum(getattr(p, 'spent_rub', 0.0) for p in [self.web, *self.by_lens.values()])
+
+    @property
     def free_calls(self) -> int:
         return sum(getattr(p, "calls", 0) for p in self.by_lens.values()
                    if not getattr(p, "paid", True))
@@ -188,6 +194,7 @@ class YandexSearch:
         self.s = settings
         self.cache_dir = cache_dir
         self.calls = 0
+        self.spent_rub = 0.0
         self._client = httpx.Client(timeout=httpx.Timeout(20.0))
 
     def search(self, query: str, lang: str, lens: str, count: int) -> list[SearchHit]:
@@ -200,21 +207,47 @@ class YandexSearch:
             "folderId": self.s.yandex_folder_id,
             "responseFormat": "FORMAT_XML",
         }
-        r = self._client.post(
-            self.s.search_endpoint,
-            headers={"Authorization": f"Api-Key {self.s.yandex_api_key}"},
-            json=body,
-        )
-        self.calls += 1
+        cache_file = None
+        digest = hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()
+        daily_cache = RUNS_DIR / '.search-cache' / datetime.now(timezone.utc).date().isoformat() / (digest + '.xml')
+        if self.cache_dir:
+            cache_file = self.cache_dir / f'{lang}_{digest}.xml'
+            if cache_file.exists():
+                return parse_yandex_xml(cache_file.read_bytes(), query, lang, lens, count)
+        if daily_cache.exists():
+            xml = daily_cache.read_bytes()
+            if cache_file:
+                cache_file.parent.mkdir(parents=True, exist_ok=True)
+                cache_file.write_bytes(xml)
+            return parse_yandex_xml(xml, query, lang, lens, count)
+        if __import__('os').environ.get('RADAR_CACHE_ONLY') == '1':
+            from .ledger import LimitReached
+            raise LimitReached('cache-only: missing search response')
+        # Учёт до обращения: при обрыве соединения провайдер уже посчитал вызов, и учёт,
+        # который пишет только успешные ответы, занижает расход.
+        from .ledger import Prices as _P, shared as _ledger
+        price = _P().search_call_rub
+        with _ledger().paid(price, "search", f"search:{lang}:{query[:40]}") as _spent:
+            self.spent_rub += price
+            r = self._client.post(
+                self.s.search_endpoint,
+                headers={"Authorization": f"Api-Key {self.s.yandex_api_key}"},
+                json=body,
+            )
+            self.calls += 1
+            _spent["actual"] = price
         r.raise_for_status()
         raw = r.json().get("rawData")
         if not raw:
             return []
         xml = base64.b64decode(raw)
+        daily_cache.parent.mkdir(parents=True, exist_ok=True)
+        daily_cache.write_bytes(xml)
         if self.cache_dir:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
             safe = "".join(ch if ch.isalnum() else "_" for ch in query)[:60]
             (self.cache_dir / f"{lang}_{safe}.xml").write_bytes(xml)
+            cache_file.write_bytes(xml)
         return parse_yandex_xml(xml, query, lang, lens, count)
 
     def close(self) -> None:
@@ -400,6 +433,46 @@ PAIN_SYSTEM = """Тебе даны заголовки и фрагменты св
 ещё нет имени, но боль у неё конкретная, и по боли находятся те, кто её решает."""
 
 
+
+AXES_SYSTEM = """Тебе даны заголовки и фрагменты свежей поисковой выдачи и названия свежих
+научных работ по направлению. Перечисли 12 **объектов и слоёв** этого направления, в
+которых прямо сейчас появляется новое.
+
+Верни только JSON: {"subsegments": [{"en": "...", "ru": "...", "why_new": "..."}, ...]}.
+
+Оси, по которым надо пройти, — по две-три записи на ось:
+  * **инструменты и активы**: чем распоряжаются, что выпускают, что служит обеспечением.
+    Перечисли типы: депозиты, паи фондов, обеспечение и залог, обмен валют, страховые
+    продукты, права требования;
+  * **слои инфраструктуры**: расчёты, хранение, идентификация, обмен данными и отдельно
+    **криптографические примитивы** — постквантовые алгоритмы, доказательства с нулевым
+    разглашением, многосторонние вычисления, конфиденциальные вычисления;
+  * **каналы и способы взаимодействия**: голос и телефония, браузер, автономный агент,
+    встроенный в чужой продукт сервис, мессенджер;
+  * **функции внутри отрасли**: не только продажа и обслуживание, но и взыскание,
+    урегулирование претензий, надзор, отчётность, аудит;
+  * **объекты регулирования и надзора**: что именно требуют раскрывать, проверять,
+    страховать, хранить.
+
+Перечисление осей — это знание о самой отрасли, а не подсказка ответа: конкретные
+технологии внутри каждой оси ты обязан взять из показанных текстов, а не из своей памяти.
+
+Это дополнение к другому плану, который ищет нерешённые проблемы. Здесь нужны **не боли**,
+а именно предметы: то, что можно выпустить, заложить, зашифровать, застраховать, провести
+через расчёт.
+
+Зачем так. Измерено 28.09.2026 по «Финтеху»: план из одних болей не покрыл шесть категорий
+из семнадцати, и все шесть — предметы, а не проблемы. После добавления этой оси нашлись
+четыре из шести; не нашлись голосовые агенты для взыскания долга (ось канала и ось функции)
+и постквантовая криптография в расчётах (ось примитива) — поэтому обе оси перечислены
+явно. Примеры пропущенного: токенизированные паи денежных фондов
+как обеспечение, депозитные токены, стейблкоины локальных валют с обменом на цепочке,
+программируемые целевые деньги, постквантовая криптография в расчётах, ончейн-скоринг для
+необеспеченного кредитования. Спросить о них по «болям» невозможно: у предмета нет боли.
+
+Бери формулировки из предоставленных текстов. Предмет, который существовал в том же виде
+пять лет назад и с тех пор не изменился, не бери."""
+
 ANCHOR_STOP = {"слабые", "сигналы", "технологии", "решения", "область", "направление",
                "weak", "signals", "technologies", "in", "and", "the", "of", "для", "в", "и"}
 
@@ -470,6 +543,25 @@ def plan_subsegments_grounded(direction: str, llm, searcher, results: int = 10,
     if not snippets and not papers:
         return plan_subsegments(direction, llm)
 
+    # План «mixed»: половина записей — нерешённые проблемы, половина — предметы и слои.
+    # Причина в замере 28.09.2026: шесть категорий эталона «Финтеха» из семнадцати не
+    # искались вовсе, и все шесть — предметы (паи фондов, депозитные токены, постквантовая
+    # криптография), о которых нельзя спросить как о боли.
+    if plan == "mixed":
+        halves = []
+        for sub_system in (PAIN_SYSTEM, AXES_SYSTEM):
+            try:
+                part, _, _ = llm.complete(sub_system, {"direction": direction,
+                                                      "found": snippets[:30], "papers": papers})
+                got = json.loads(part[part.find("{"): part.rfind("}") + 1])
+            except (json.JSONDecodeError, ValueError, KeyError):
+                continue
+            halves.append([{"en": str(i["en"]).strip(), "ru": str(i.get("ru", "")).strip()}
+                           for i in got.get("subsegments", [])
+                           if isinstance(i, dict) and i.get("en")][:6])
+        merged = [x for pair in zip(*halves) for x in pair] if len(halves) == 2 else             [x for part in halves for x in part]
+        if len(merged) >= 6:
+            return merged[:12], "grounded/mixed"
     system = PAIN_SYSTEM if plan == "pains" else GROUND_SYSTEM
     text, _, _ = llm.complete(system, {"direction": direction,
                                        "found": snippets[:30], "papers": papers})

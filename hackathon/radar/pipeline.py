@@ -10,6 +10,7 @@ import argparse
 import json
 import time
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -17,7 +18,7 @@ from .config import (Candidate, DocumentSnapshot, Limits, RunManifest, SearchHit
                      RUNS_DIR, FIXTURES_DIR, load_env_file)
 from .evaluate import Funnel, compute_c, check_do_not_merge, read_review_file, report, suggest_matches, write_review_file
 from .extract import PROMPT_VERSION, FixtureLLM, YandexLLM, extract, merge_candidates
-from .fetch import Fetcher, FixtureFetcher, parse_html
+from .fetch import Fetcher, FixtureFetcher, parse_document
 from .hypotheses import generate as generate_hypotheses, verify as verify_hypothesis
 from .reference import area_items, load_reference
 from .openalex import OpenAlexSearch
@@ -70,7 +71,7 @@ def run_pool(
     max_docs: int | None = None,
     runs_dir: Path = RUNS_DIR,
     lenses: tuple[str, ...] = ("product", "funding", "standard", "research"),
-    plan: str = "segments",
+    plan: str = "tree",
 ) -> Path:
     """Один прогон: план → поиск → загрузка → разбор → извлечение → склейка → метрика."""
     lim: Limits = settings.limits
@@ -102,7 +103,13 @@ def run_pool(
         llm = FixtureLLM(json.loads((FIXTURES_DIR / "llm.json").read_text(encoding="utf-8"))
                          if (FIXTURES_DIR / "llm.json").exists() else {})
 
-    if mode == "live":
+    tree = None
+    if mode == "live" and plan == "tree":
+        from .discovery import plan_tree
+        tree = plan_tree(direction, llm, searcher)
+        (out / "discovery-tree.json").write_text(json.dumps(tree, ensure_ascii=False, indent=2))
+        subsegments, planner_source = tree['leaves'], tree['version']
+    elif mode == "live":
         # Заземляем планировщик на свежую выдачу: из памяти модель даёт
         # таксономию атак образца 2020 года и нулевое покрытие эталона.
         subsegments, planner_source = plan_subsegments_grounded(direction, llm, searcher, plan=plan)
@@ -116,10 +123,19 @@ def run_pool(
     # работ по этим темам почти нет, а термины всё равно английские.
     ru_share = 0.0 if lenses == ("research",) else 0.2
     funnel.notes.append("линзы: " + ", ".join(lenses))
-    for query, lang, lens in build_queries(subsegments, lim.discovery_queries,
-                                           ru_share=ru_share, lenses=lenses):
-        hits.extend(searcher.search(query, lang, lens, lim.results_per_query))
-        funnel.queries += 1
+    if tree is not None:
+        from .discovery import search_tree
+        def save_search(t, found):
+            (out / "discovery-tree.json").write_text(json.dumps(t, ensure_ascii=False, indent=2))
+            _jsonl(out / "hits.jsonl", found)
+        hits = search_tree(tree, searcher, lim.discovery_queries, lim.results_per_query,
+                           started + lim.run_deadline_s, save_search)
+        funnel.queries = len(tree['queries'])
+    else:
+        for query, lang, lens in build_queries(subsegments, lim.discovery_queries,
+                                               ru_share=ru_share, lenses=lenses):
+            hits.extend(searcher.search(query, lang, lens, lim.results_per_query))
+            funnel.queries += 1
     funnel.hits = len(hits)
 
     api_snapshots = getattr(searcher, "snapshots", {}) or {}
@@ -133,11 +149,13 @@ def run_pool(
     fetches = []
     fetcher_ctx = (Fetcher(settings, raw_dir=out / "raw") if mode == "live"
                    else FixtureFetcher(FIXTURES_DIR / "docs"))
+    # Загрузка идёт параллельно. Измерено 28.09.2026: последовательная давала 5,7 с на
+    # ссылку, и расширение очереди до 160 добавляло десять минут — двадцатиминутный лимит
+    # заказчика ломался. Пределы вежливости сохранены: к одному владельцу по очереди,
+    # с задержкой, robots и запретом приватных адресов.
     with fetcher_ctx as fetcher:
+        queue = [h for h in selected if api_snapshots.get(h.url) is None]
         for hit in selected:
-            if time.monotonic() - started > lim.run_deadline_s:
-                funnel.notes.append("остановлено по дедлайну прогона")
-                break
             ready = api_snapshots.get(hit.url)
             if ready is not None:
                 # Документ пришёл из API вместе с текстом: качать нечего.
@@ -145,30 +163,110 @@ def run_pool(
                 funnel.fetched_ok += 1
                 funnel.parsed_ok += 1
                 docs.append(ready)
-                continue
-            result, body = fetcher.fetch(hit.url)
+        results: dict[int, tuple] = {}
+        if queue:
+            with ThreadPoolExecutor(max_workers=max(1, lim.concurrency)) as pool:
+                futures = {pool.submit(fetcher.fetch, h.url): (i, h)
+                           for i, h in enumerate(queue)}
+                for fut in as_completed(futures):
+                    i, h = futures[fut]
+                    if time.monotonic() - started > lim.run_deadline_s:
+                        funnel.notes.append("остановлено по дедлайну прогона")
+                        break
+                    try:
+                        results[i] = (h, *fut.result())
+                    except Exception as exc:          # отказ одной ссылки не валит прогон
+                        funnel.notes.append(f"загрузка отказала: {type(exc).__name__}")
+        for i in sorted(results):
+            hit, result, body = results[i]
             funnel.fetch_attempts += 1
             fetches.append(result)
             if result.status != "ok" or body is None:
                 continue
             funnel.fetched_ok += 1
-            snapshot = parse_html(body, hit.url, result.final_url or hit.url)
+            # Разбор по фактическому типу ответа: PDF раньше скачивался и выбрасывался,
+            # а в PDF приходят как раз первоисточники — записки МВФ, доклады ЦБ, arXiv.
+            snapshot = parse_document(body, hit.url, result.final_url or hit.url,
+                                      result.content_type)
             if snapshot is None:
                 continue
             funnel.parsed_ok += 1
             docs.append(snapshot)
 
+    # Какие документы уходят в извлечение. Раньше брались первые по порядку загрузки
+    # (`docs[:extraction_packets]`). Опыт 28.09.2026 показал, что решает состав, а не
+    # размер: при равном бюджете 48 пакетов отбор по разнообразию дал 7 эталонных строк
+    # из 17 против 5, а вместе с расширенной загрузкой — 9 из 17. Отбираем по кругу между
+    # запросами, первоисточник вперёд, не больше трёх документов с одного хоста.
+    hit_of = {}
+    for i, h in enumerate(selected):
+        hit_of.setdefault(h.url, (getattr(h, "query", ""), i))
+        hit_of.setdefault((h.url or "").rstrip("/"), (getattr(h, "query", ""), i))
+
+    def _doc_key(doc) -> tuple[str, int]:
+        for key in (getattr(doc, "final_url", ""), getattr(doc, "url", "")):
+            if key in hit_of:
+                return hit_of[key]
+            if (key or "").rstrip("/") in hit_of:
+                return hit_of[(key or "").rstrip("/")]
+        return ("", 999)
+
+    def select_documents(items: list, limit: int) -> list:
+        from .hoststats import host_of, layer_of
+        buckets: dict[str, list] = {}
+        for d in items:
+            query, pos = _doc_key(d)
+            buckets.setdefault(query, []).append((pos, d))
+        for q in buckets:
+            buckets[q].sort(key=lambda t: (0 if layer_of(host_of(
+                getattr(t[1], "url", "") or "")) == "первоисточник" else 1, t[0]))
+        picked, host_used, queries = [], Counter(), sorted(buckets)
+        while len(picked) < limit and any(buckets[q] for q in queries):
+            for q in queries:
+                if len(picked) >= limit or not buckets[q]:
+                    continue
+                _, d = buckets[q].pop(0)
+                host = host_of(getattr(d, "url", "") or "")
+                if host_used[host] >= 3:
+                    continue
+                host_used[host] += 1
+                picked.append(d)
+        return picked
+
+    docs_for_extraction = select_documents(docs, lim.extraction_packets)
+    _jsonl(out / "documents.jsonl", docs)
+    _jsonl(out / "fetches.jsonl", fetches)
+    (out / "extraction-selection.json").write_text(json.dumps(
+        [d.url for d in docs_for_extraction], ensure_ascii=False, indent=2))
+    funnel.notes.append(f"на извлечение отобрано {len(docs_for_extraction)} из {len(docs)} "
+                        f"документов по разнообразию запросов и хостов")
+
     cutoff = datetime.now(timezone.utc).date().isoformat()
     candidates: list[Candidate] = []
     in_tok = out_tok = 0
-    for doc in docs[: lim.extraction_packets]:
-        res = extract(doc, llm, cutoff=cutoff)
+    for doc in docs_for_extraction:
+        if time.monotonic() - started >= lim.run_deadline_s:
+            funnel.notes.append("извлечение остановлено по сроку; сохранён частичный пул")
+            break
+        from .ledger import LimitReached
+        try:
+            res = extract(doc, llm, cutoff=cutoff)
+        except LimitReached:
+            funnel.notes.append('извлечение остановлено по бюджету; сохранён частичный пул')
+            break
         in_tok += res.input_tokens
         out_tok += res.output_tokens
         candidates.extend(res.candidates)
+        _jsonl(out / "candidates.partial.jsonl", candidates)
     funnel.extracted_candidates = len(candidates)
 
-    merged = merge_candidates(candidates)
+    # In tree mode keep categories intact until the downstream proof filters and
+    # guarded semantic merge. Lexical overlap must not silently erase a narrower one.
+    merged = candidates if tree is not None else merge_candidates(candidates)
+    if tree is not None:
+        from .discovery import attach_document_coverage
+        attach_document_coverage(tree, docs, hits, docs_for_extraction, candidates)
+        (out / "discovery-tree.json").write_text(json.dumps(tree, ensure_ascii=False, indent=2))
     funnel.after_merge = len(merged)
 
     for err in (getattr(searcher, "errors", []) or [])[:5]:
@@ -193,7 +291,7 @@ def run_pool(
         counters={**funnel.as_dict(), "input_tokens": in_tok, "output_tokens": out_tok,
                   "search_calls": getattr(searcher, "calls", 0),
                   "free_search_calls": getattr(searcher, "free_calls", 0)},
-        cost_rub=estimate_cost(settings, getattr(searcher, "calls", 0), in_tok, out_tok),
+        cost_rub=round(getattr(searcher, 'spent_rub', 0.0) + getattr(llm, 'spent_rub', 0.0), 4),
         finished_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
     )
     (out / "manifest.json").write_text(json.dumps(manifest.model_dump(), ensure_ascii=False, indent=2),
@@ -325,7 +423,7 @@ def main(argv: list[str] | None = None) -> int:
     p_run.add_argument("--direction", required=True, help="запрос пользователя, без названий из таблицы")
     p_run.add_argument("--mode", choices=["live", "fixtures"], default="fixtures")
     p_run.add_argument("--max-docs", type=int, default=None)
-    p_run.add_argument("--plan", choices=["segments", "pains"], default="segments",
+    p_run.add_argument("--plan", choices=["tree", "mixed", "segments", "pains"], default="tree",
                        help="segments — структура отрасли; pains — её нерешённые проблемы")
     p_run.add_argument("--lenses", default="product,funding,standard,research",
                        help="какие линзы включить; research уходит в OpenAlex")

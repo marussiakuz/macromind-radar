@@ -1,0 +1,39 @@
+# HTTPS для публичного MVP. Сертификат Caddy получает сам, при первом запросе.
+#
+# RADAR_HOST — имя, по которому сервис открыт. Варианты:
+#   * свой домен, например radar.example.ru (надёжнее всего);
+#   * имя вида 203-0-113-7.sslip.io, если домена нет: оно разворачивается в этот же IP,
+#     и Let's Encrypt выдаёт на него сертификат.
+{$RADAR_HOST} {
+	encode gzip
+
+	# Интерфейс на GitHub Pages обращается сюда из браузера, поэтому нужен CORS.
+	# Сервис уже отдаёт заголовки сам, но на предварительный запрос OPTIONS отвечаем
+	# здесь: иначе браузер не дойдёт до приложения.
+	@preflight method OPTIONS
+	handle @preflight {
+		header {
+			Access-Control-Allow-Origin "*"
+			Access-Control-Allow-Methods "GET, POST, OPTIONS"
+			Access-Control-Allow-Headers "Content-Type, X-Radar-Token"
+			Access-Control-Max-Age "86400"
+		}
+		respond 204
+	}
+
+	reverse_proxy radar:8000 {
+		# Живой прогон идёт 7–11 минут, и страница ждёт ответа на опрос состояния.
+		# Со значениями по умолчанию прокси обрывал бы соединение раньше сервиса.
+		transport http {
+			response_header_timeout 5m
+			read_timeout 25m
+		}
+	}
+
+	log {
+		output file /data/access.log {
+			roll_size 10MiB
+			roll_keep 3
+		}
+	}
+}

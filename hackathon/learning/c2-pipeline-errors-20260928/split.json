@@ -1,0 +1,11 @@
+{
+  "assigned": false,
+  "reason": "C2 — часть набора из 300 записей. Группы и split назначает тот, кто собирает весь датасет: группировать надо вместе с A, B, C1 и C3, иначе одна технология окажется в обучении и в контроле одновременно.",
+  "available_grouping_keys": [
+    "technology_family_id",
+    "sources[].url",
+    "provenance.original_run_id"
+  ],
+  "constraint": "все записи имеют previously_used=true: прогоны использовались в разработке, независимым тестом набор не является",
+  "seed_recommended_by_brief": 42
+}

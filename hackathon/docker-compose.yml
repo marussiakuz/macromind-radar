@@ -1,0 +1,43 @@
+# Публичный MVP: сервис радара + HTTPS-прокси.
+#
+# Ключи берутся из файла .env рядом с этим файлом (в репозиторий он не попадает).
+# Адрес задаётся переменной RADAR_HOST: Caddy сам получит сертификат Let's Encrypt.
+services:
+  radar:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Ограничители публичного адреса. Считаны из фактической стоимости прогона
+      # (замер 28.09.2026: 89,7 ₽ — около 60 ₽ поиска и около 30 ₽ модели).
+      RADAR_DAILY_RUNS: "${RADAR_DAILY_RUNS:-6}"
+      RADAR_IP_DAILY_RUNS: "${RADAR_IP_DAILY_RUNS:-2}"
+      RADAR_RUN_TIMEOUT: "${RADAR_RUN_TIMEOUT:-1200}"
+      RADAR_RUN_COST_SEARCH: "${RADAR_RUN_COST_SEARCH:-60}"
+      RADAR_RUN_COST_LLM: "${RADAR_RUN_COST_LLM:-30}"
+      # Пустой токен — открытый доступ. Задать, если бюджет нужно отдать только жюри.
+      RADAR_PUBLIC_TOKEN: "${RADAR_PUBLIC_TOKEN:-}"
+    volumes:
+      # Состояние: учёт расходов, квота, сохранённые разборы.
+      - ./radar-runs:/app/radar-runs
+    expose:
+      - "8000"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - radar
+    environment:
+      RADAR_HOST: "${RADAR_HOST}"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  caddy-data:
+  caddy-config:

@@ -1,0 +1,194 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Разметка кандидатов конвейера</title>
+<!--
+  Нейтральная форма разметки. Написана вместо переноса шаблона reference-review.html:
+  там ветка происхождения выводила у всех карточек этого пакета подсказку о предполагаемом
+  классе, дословная цитата не отображалась вовсе, а подпись утверждала, что цитат в пакете
+  нет. Разметчик видел подсказку раньше, чем принимал решение. Здесь такой ветки нет, и
+  формулировка подсказки сюда не переносится даже в комментарий.
+
+  Что здесь показывается: область, название, механизм, применение, источники со ссылкой,
+  датой публикации (или «дата не установлена»), пересказом и ДОСЛОВНОЙ цитатой.
+  Что здесь не показывается никогда: наша оценка стадии, балл, уровень, происхождение
+  примера, совпадение со строкой таблицы заказчика, предложение модели.
+-->
+<style>
+ :root { --bg:#fff; --fg:#111; --muted:#666; --line:#e2e2e2; --warn:#8a5a00; --warnbg:#fff8e6; }
+ @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+   --bg:#15171a; --fg:#eceff1; --muted:#9aa0a6; --line:#2c3034; --warn:#ffcf7a; --warnbg:#2a2415; } }
+ body { background:var(--bg); color:var(--fg); font:15px/1.55 -apple-system,Segoe UI,Roboto,sans-serif;
+        max-width:940px; margin:0 auto; padding:24px 16px 64px; }
+ h1 { font-size:20px; margin:0 0 4px; } h2 { font-size:18px; margin:18px 0 6px; }
+ small, .muted { color:var(--muted); }
+ .bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:12px 0 18px;
+        padding-bottom:12px; border-bottom:1px solid var(--line); }
+ .src { border:1px solid var(--line); border-radius:8px; padding:12px; margin:10px 0; }
+ .quote { border-left:3px solid var(--line); padding:6px 0 6px 12px; margin:8px 0 0; font-style:italic; }
+ .warn { background:var(--warnbg); color:var(--warn); border-radius:8px; padding:10px 12px; margin:12px 0; }
+ label.opt { display:block; padding:6px 0; }
+ button, select, input[type=text], textarea { font:inherit; padding:7px 10px; border-radius:7px;
+        border:1px solid var(--line); background:var(--bg); color:var(--fg); }
+ button { cursor:pointer; } textarea { width:100%; min-height:72px; }
+ #msg { min-height:20px; }
+</style>
+<h1>Разметка кандидатов живого конвейера</h1>
+<small>По каждой карточке решите: ранняя технология (weak), зрелая (mature) или данных не хватает
+(unknown). Наши автоматические оценки скрыты намеренно — решение должно быть вашим.</small>
+
+<div class="bar">
+  <input type="text" id="reviewer" placeholder="ваше имя" size="14">
+  <select id="picker"></select>
+  <button id="prev">← назад</button>
+  <button id="next">вперёд →</button>
+  <button id="pending">к неразмеченной</button>
+  <button id="save"><b>Сохранить решение</b></button>
+  <button id="export">Скачать разметку</button>
+  <label><input type="file" id="import" accept=".jsonl" hidden><button id="importbtn">Загрузить файл</button></label>
+</div>
+<div id="progress" class="muted"></div>
+<div id="card"></div>
+<h2>Решение</h2>
+<label class="opt"><input type="radio" name="label" value="weak"> weak — ранняя: механизм новый или узкий, массового применения не видно</label>
+<label class="opt"><input type="radio" name="label" value="mature"> mature — зрелая: по источнику видно массовое применение или давнюю распространённость</label>
+<label class="opt"><input type="radio" name="label" value="unknown"> unknown — данных не хватает или спор не разрешён</label>
+<p class="muted">Обзор, SEO-подборка и неизвестная стадия сами по себе не означают mature: чаще это unknown.</p>
+<label class="opt"><input type="checkbox" id="facts"> Открыл источники и сверил цитату</label>
+<label class="opt"><input type="checkbox" id="stage"> Стадию определял по тексту источника, не по названию</label>
+<label class="opt"><input type="checkbox" id="family"> Проверил, что это отдельная технология, а не повтор другой карточки</label>
+<input type="text" id="correction" placeholder="если повтор — номер или название той карточки" size="52">
+<p class="muted">Заполненное поле повтора — это сигнал переразделить группы: такая карточка
+намеренно не пойдёт в обучение, пока разделение не пересобрано. Так и должно быть.</p>
+<textarea id="reason" placeholder="коротко: на чём основано решение (обязательно)"></textarea>
+<p id="msg"></p>
+<script id="packet" type="application/json">__PACKET_JSON__</script>
+<script>
+const packet = JSON.parse(document.getElementById('packet').textContent);
+const rows = packet.rows, hashes = packet.hashes;
+const key = 'labels:' + (packet.rows[0] && packet.rows[0].packet_version || 'pipeline') + ':' + rows.length;
+let labels;
+try { labels = JSON.parse(localStorage.getItem(key)) || packet.labels; }
+catch (e) { labels = packet.labels; }
+if (labels.length !== rows.length) labels = packet.labels;
+let index = 0, dirty = false;
+const $ = id => document.getElementById(id);
+const el = (p, tag, text) => { const n = document.createElement(tag); if (text) n.textContent = text; p.append(n); return n; };
+
+rows.forEach((r, i) => { const o = document.createElement('option'); o.value = i;
+  o.textContent = `${i + 1}. ${r.area} — ${r.category.slice(0, 60)}`; $('picker').append(o); });
+
+function progress() {
+  const done = labels.filter(a => a.status === 'confirmed');
+  const n = l => done.filter(a => a.label === l).length;
+  $('progress').textContent = `Размечено ${done.length} из ${rows.length} · weak ${n('weak')} · mature ${n('mature')} · unknown ${n('unknown')}`;
+}
+
+function show() {
+  const r = rows[index], a = labels[index], d = $('card');
+  d.replaceChildren();
+  $('picker').value = index;
+  el(d, 'small', `${r.area} · карточка ${index + 1} из ${rows.length} · оценка на ${r.cutoff}`);
+  el(d, 'h2', r.category);
+  el(d, 'p', 'Механизм: ' + r.mechanism);
+  if (r.application) el(d, 'p', 'Применение: ' + r.application);
+  r.sources.forEach(s => {
+    const box = el(d, 'div', ''); box.className = 'src';
+    const lab = el(box, 'label', '');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.className = 'source-check'; cb.value = s.source_id;
+    cb.checked = (a.source_ids || []).includes(s.source_id);
+    lab.append(cb, document.createTextNode(' использую этот источник'));
+    const link = el(box, 'a', s.title || s.url); link.href = s.url; link.target = '_blank'; link.rel = 'noreferrer';
+    el(box, 'small', s.date ? ` · дата публикации ${s.date}` : ' · дата публикации не установлена');
+    el(box, 'p', s.summary_ru);
+    el(box, 'blockquote', '«' + s.quote + '»').className = 'quote';
+    el(box, 'small', 'Цитата найдена в сохранённом снимке страницы по смещениям '
+      + s.quote_start + '–' + s.quote_end + '.');
+  });
+  if (r.concerns && r.concerns.length) {
+    const w = el(d, 'div', ''); w.className = 'warn';
+    el(w, 'b', 'Что проверить внимательно');
+    r.concerns.forEach(c => el(w, 'p', c));
+  }
+  document.querySelectorAll('input[name=label]').forEach(n => n.checked = n.value === a.label);
+  $('facts').checked = !!a.facts_checked; $('stage').checked = !!a.stage_checked;
+  $('family').checked = !!a.family_checked; $('correction').value = a.family_correction || '';
+  $('reason').value = a.rationale || '';
+  if (a.reviewer) $('reviewer').value = a.reviewer;
+  $('msg').textContent = ''; dirty = false; progress();
+}
+
+function persist() {
+  try { localStorage.setItem(key, JSON.stringify(labels)); return true; }
+  catch (e) { $('msg').textContent = 'Браузер не сохранил разметку — скачайте файл сейчас.'; return false; }
+}
+
+$('save').onclick = () => {
+  const picked = document.querySelector('input[name=label]:checked');
+  const who = $('reviewer').value.trim(), why = $('reason').value.trim();
+  const used = [...document.querySelectorAll('.source-check:checked')].map(n => n.value);
+  if (!picked) { $('msg').textContent = 'Выберите weak, mature или unknown.'; return; }
+  if (!who) { $('msg').textContent = 'Впишите имя: решения двух разметчиков нужно различать.'; return; }
+  if (why.length < 10) { $('msg').textContent = 'Напишите коротко, на чём основано решение.'; return; }
+  // Требования проверяющего скрипта, иначе решение будет отброшено как invalid_review:
+  // отмеченный источник обязателен, а для weak/mature обязательны обе галочки.
+  if (!used.length) { $('msg').textContent = 'Отметьте хотя бы один источник, на котором основано решение: без этого решение не принимается.'; return; }
+  if (picked.value !== 'unknown' && !($('facts').checked && $('stage').checked)) {
+    $('msg').textContent = 'Для weak и mature нужны обе галочки: сверил цитату и определял стадию по тексту.'; return; }
+  labels[index] = { ...labels[index], status: 'confirmed', label: picked.value,
+    label_source: 'human_review', reviewer: who, reviewed_on: new Date().toISOString().slice(0, 10),
+    rationale: why, source_ids: used,
+    facts_checked: $('facts').checked, stage_checked: $('stage').checked,
+    family_checked: $('family').checked, family_correction: $('correction').value.trim(),
+    dossier_hash: hashes[rows[index].sample_id] };
+  if (persist()) $('msg').textContent = 'Сохранено.';
+  dirty = false; progress();
+};
+
+function move(i) {
+  if (dirty && !confirm('Решение не сохранено. Перейти без сохранения?')) { $('picker').value = index; return; }
+  index = i; show();
+}
+$('prev').onclick = () => move(Math.max(0, index - 1));
+$('next').onclick = () => move(Math.min(rows.length - 1, index + 1));
+$('picker').onchange = () => move(Number($('picker').value));
+$('pending').onclick = () => { for (let k = 1; k <= rows.length; k++) {
+  const i = (index + k) % rows.length; if (labels[i].status !== 'confirmed') { move(i); return; } }
+  $('msg').textContent = 'Неразмеченных карточек не осталось.'; };
+document.addEventListener('change', e => {
+  if (['facts','stage','family','correction','reason'].includes(e.target.id)
+      || e.target.name === 'label' || e.target.classList.contains('source-check')) dirty = true; });
+$('reason').addEventListener('input', () => dirty = true);
+window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+
+$('export').onclick = () => {
+  if (dirty) { $('msg').textContent = 'Сначала сохраните текущее решение.'; return; }
+  const body = labels.map(a => JSON.stringify(a)).join('\n') + '\n';
+  const url = URL.createObjectURL(new Blob([body], { type: 'application/x-ndjson' }));
+  const a = document.createElement('a'); a.href = url;
+  a.download = 'pipeline-candidates-labels.jsonl'; a.click(); URL.revokeObjectURL(url);
+};
+$('importbtn').onclick = () => $('import').click();
+$('import').onchange = async ev => {
+  if (dirty) { $('msg').textContent = 'Сначала сохраните текущее решение.'; return; }
+  const file = ev.target.files[0]; if (!file) return;
+  const incoming = {};
+  for (const line of (await file.text()).split('\n')) {
+    if (!line.trim()) continue;
+    try { const row = JSON.parse(line); if (row.sample_id) incoming[row.sample_id] = row; } catch (e) { }
+  }
+  let added = 0, conflicts = 0;
+  labels = labels.map(a => {
+    const other = incoming[a.sample_id];
+    if (!other || other.status !== 'confirmed') return a;
+    if (a.status === 'confirmed' && a.label !== other.label) { conflicts++; return a; }
+    if (a.status === 'confirmed') return a;
+    added++; return other;
+  });
+  persist();
+  $('msg').textContent = `Добавлено решений: ${added}. Расхождений с уже сохранёнными: ${conflicts}`
+    + (conflicts ? ' — их надо обсудить и решить вручную.' : '.');
+  ev.target.value = ''; show();
+};
+show();
+</script>

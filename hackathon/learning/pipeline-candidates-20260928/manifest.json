@@ -1,0 +1,21 @@
+{
+  "samples": 30,
+  "provenance": "radar_live_pipeline_candidates",
+  "human_reviewed_dossiers": 0,
+  "proposed_labels": 0,
+  "customer_table_annotated": false,
+  "split_counts": {
+    "train": 20,
+    "test": 10
+  },
+  "group_count": 26,
+  "area_counts": {
+    "Защита ИИ": 15,
+    "Финтех": 15
+  },
+  "sources": 26,
+  "evidence_storage": "Verbatim quote from saved snapshot plus model paraphrase; quote not in model features",
+  "known_risk": "Paraphrase register differs from the reference pilot; do not mix packets without a provenance control",
+  "trained": false,
+  "automatic_deployment": false
+}

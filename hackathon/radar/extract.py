@@ -8,12 +8,14 @@ from __future__ import annotations
 
 import json
 import re
+import hashlib
+from pathlib import Path
 from dataclasses import dataclass
 from typing import Protocol
 
 import httpx
 
-from .config import Candidate, DocumentSnapshot, Evidence, ExtractionResult, Settings
+from .config import Candidate, DocumentSnapshot, Evidence, ExtractionResult, Settings, RUNS_DIR
 
 PROMPT_VERSION = "extract/0.3"
 
@@ -160,6 +162,7 @@ class YandexLLM:
         self.s = settings
         self.temperature = temperature
         self.max_tokens = max_tokens
+        self.spent_rub = 0.0
         self._client = httpx.Client(timeout=httpx.Timeout(90.0))
 
     def complete(self, system: str, payload: dict) -> tuple[str, int, int]:
@@ -180,19 +183,46 @@ class YandexLLM:
             "temperature": self.temperature,
             "reasoning_effort": "none",
         }
-        r = self._client.post(
-            self.s.llm_endpoint,
-            headers={"Authorization": f"Api-Key {self.s.yandex_api_key}"},
-            json=body,
-        )
-        r.raise_for_status()
-        data = r.json()
+        cache_key = hashlib.sha256(json.dumps(body, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
+        cache = RUNS_DIR / '.completion-cache' / (cache_key + '.json')
+        if cache.exists():
+            try:
+                cached = json.loads(cache.read_text())
+                if isinstance(cached.get('text'), str) and cached['text']:
+                    return cached['text'], 0, 0
+            except (ValueError, OSError):
+                pass
+        if __import__('os').environ.get('RADAR_CACHE_ONLY') == '1':
+            from .ledger import LimitReached
+            raise LimitReached('cache-only: missing model response')
+        # Резервируем худший случай: длина запроса плюс потолок ответа. После ответа
+        # разница возвращается по фактическим токенам из `usage`.
+        from .ledger import llm_cost, shared as _ledger
+        approx_in = len(json.dumps(body, ensure_ascii=False)) // 3
+        worst = llm_cost(approx_in, self.max_tokens)
+        with _ledger().paid(worst, "llm", f"llm:{system[:40]}") as _spent:
+            self.spent_rub += worst
+            r = self._client.post(
+                self.s.llm_endpoint,
+                headers={"Authorization": f"Api-Key {self.s.yandex_api_key}"},
+                json=body,
+            )
+            r.raise_for_status()
+            data = r.json()
+            _usage = data.get("usage", {})
+            if all(type(_usage.get(k)) is int for k in ('prompt_tokens', 'completion_tokens')):
+                _spent["actual"] = llm_cost(_usage['prompt_tokens'], _usage['completion_tokens'])
+                self.spent_rub += _spent['actual'] - worst
         message = data["choices"][0]["message"]
         text = message.get("content") or ""
         if not text and message.get("reasoning_content"):
             # Модель ушла в рассуждения: считаем это отказом, а не пустым ответом.
             raise RuntimeError("модель вернула только reasoning_content: проверьте reasoning_effort")
         usage = data.get("usage", {})
+        if text:
+            from .ledger import _atomic_write
+            cache.parent.mkdir(parents=True, exist_ok=True)
+            _atomic_write(cache, {'text': text, 'usage': usage})
         return text, int(usage.get("prompt_tokens", 0)), int(usage.get("completion_tokens", 0))
 
 

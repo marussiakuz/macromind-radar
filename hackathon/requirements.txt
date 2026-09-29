@@ -1,0 +1,21 @@
+# Ядро сервиса и конвейера
+fastapi==0.124.4
+uvicorn==0.34.0
+httpx==0.28.1
+pydantic==2.12.4
+pydantic-settings==2.14.0
+lxml==6.1.0
+pypdf==6.12.1
+
+# Чтение таблицы заказчика при оценке покрытия
+openpyxl==3.1.5
+
+# Локальные векторы для сопоставления и объединения. Считаются на процессоре, без сети:
+# модель intfloat/multilingual-e5-small берётся из локального кеша Hugging Face.
+sentence-transformers==5.4.1
+torch==2.10.0
+numpy==2.1.3
+scikit-learn==1.8.0
+
+# Тесты
+pytest==9.1.1

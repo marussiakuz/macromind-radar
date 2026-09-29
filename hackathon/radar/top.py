@@ -15,7 +15,8 @@ from pathlib import Path
 from .config import Settings, load_env_file
 from .corroborate import canonical_terms, cluster_by_term
 from .extract import YandexLLM
-from .rank import HackerNewsProbe, score_candidate
+from .rank import (SCORE_WITHOUT_TERM, HackerNewsProbe, MaturityProbe, OpenAlexProbe,
+                   score_candidate)
 from .reference import normalize_tokens
 
 
@@ -83,13 +84,18 @@ def main(argv: list[str] | None = None) -> int:
             players_of[id(cand)] = cl.players
             sources_of[id(cand)] = cl.independent_sources
 
-    probe = HackerNewsProbe()
+    # Те же источники и тот же порядок, что в сервисе: иначе одна и та же запись
+    # получает разные решения в зависимости от способа запуска.
+    probe = MaturityProbe([OpenAlexProbe(), HackerNewsProbe()])
     scored = []
     for i, c in enumerate(pool):
         term = terms.get(i)
-        if not term:
-            continue  # без термина автора измерять нечего
-        c = {**c, "name_orig": term}
+        if not term and not SCORE_WITHOUT_TERM:
+            continue
+        # Та же правка, что в server.build_cards: отсутствие термина — это отсутствие
+        # прибора, а не свойство технологии, и по измерению 27.09.2026 он отсутствовал
+        # именно у эталонных кандидатов чаще, чем у прочих (10 % против 42 % на «Финтехе»).
+        c = {**c, "name_orig": term or ""}
         sig = score_candidate(c, probe, players=players_of.get(id(pool[i]), 0))
         if sources_of.get(id(pool[i]), 0) >= 2:
             sig.score += 1.5

@@ -11,12 +11,16 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import ipaddress
 import json
 import socket
+import threading
 import time
 import unicodedata
 import urllib.robotparser as robotparser
+from collections import Counter
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse, urlunparse
 
@@ -122,6 +126,16 @@ class Fetcher:
         )
         self.robots = RobotsCache(self._client, settings.user_agent)
         self._last_hit: dict[str, float] = {}
+        # Загрузка стала параллельной (см. pipeline): запросы к разным владельцам идут
+        # одновременно, а к одному — по очереди. Замок на владельца сохраняет задержку
+        # между обращениями к одному сайту: она нужна не нам, а сайту.
+        self._guard = threading.Lock()
+        self._origin_locks: dict[str, threading.Lock] = {}
+
+    def _origin_lock(self, url: str) -> threading.Lock:
+        origin = origin_of(url)
+        with self._guard:
+            return self._origin_locks.setdefault(origin, threading.Lock())
 
     def close(self) -> None:
         self._client.close()
@@ -142,6 +156,11 @@ class Fetcher:
         self._last_hit[origin] = time.monotonic()
 
     def fetch(self, url: str) -> tuple[FetchResult, bytes | None]:
+        """Один документ. Обращения к одному владельцу сериализуются замком владельца."""
+        with self._origin_lock(url):
+            return self._fetch_locked(url)
+
+    def _fetch_locked(self, url: str) -> tuple[FetchResult, bytes | None]:
         started = time.monotonic()
         redirects: list[str] = []
         current = url
@@ -273,6 +292,109 @@ def parse_html(body: bytes, url: str, final_url: str) -> DocumentSnapshot | None
         text_sha256=hashlib.sha256(text.encode("utf-8")).hexdigest(),
         published_at=published,
     )
+
+# Первоисточники приходят в PDF: записки МВФ, доклады Банка России, статьи arXiv, тексты
+# WIPO. До 27.09 такие ответы скачивались и выбрасывались — в `fetch.py` был только разбор
+# HTML. Измерено на трёх живых прогонах: из девяти скачанных PDF семь не стали документами,
+# и это были лучшие документы пула, тогда как в веб-выдаче первоисточников 3,3 %.
+_PDF_PAGES = 14          # извлекателю достаётся 12 спанов по 1200 знаков, глубже он не смотрит
+_SENT_END = tuple(".!?»\"”)›:;")
+
+
+def _reflow(lines: list[str]) -> list[str]:
+    """Склеивает строки, разорванные вёрсткой PDF, обратно в абзацы.
+
+    Без этого цитата не находится в тексте документа: извлекатель возвращает предложение
+    целиком, а в сыром тексте PDF оно разорвано переводом строки посреди фразы, и проверка
+    «цитата — подстрока спана» отбрасывает кандидата. То есть без склейки PDF дал бы
+    документы и ноль пригодных кандидатов.
+    """
+    out: list[str] = []
+    for line in lines:
+        line = line.strip()
+        if not line:
+            if out and out[-1]:
+                out.append("")
+            continue
+        if not out or not out[-1]:
+            out.append(line)
+            continue
+        prev = out[-1]
+        if prev.endswith("-") and line[:1].islower():
+            out[-1] = prev[:-1] + line          # перенос по слогам: «регу-\nлирование»
+        elif not prev.endswith(_SENT_END) and (line[:1].islower() or line[:1].isdigit()):
+            out[-1] = prev + " " + line          # продолжение той же фразы
+        else:
+            out.append(line)
+    return out
+
+
+def _pdf_date(raw: object) -> str | None:
+    """`D:20260115120000Z` → `2026-01-15`. Неправдоподобную дату лучше не иметь вовсе."""
+    digits = "".join(ch for ch in str(raw or "") if ch.isdigit())[:8]
+    if len(digits) != 8:
+        return None
+    year = int(digits[:4])
+    if not (1990 <= year <= datetime.now(timezone.utc).year):
+        return None
+    return f"{digits[:4]}-{digits[4:6]}-{digits[6:8]}"
+
+
+def parse_pdf(body: bytes, url: str, final_url: str) -> DocumentSnapshot | None:
+    """PDF → заголовок и текст. Колонтитулы и номера страниц убираем, абзацы склеиваем."""
+    try:
+        from pypdf import PdfReader
+        reader = PdfReader(io.BytesIO(body))
+        pages = [(page.extract_text() or "") for page in reader.pages[:_PDF_PAGES]]
+    except Exception:
+        return None
+    # Колонтитул повторяется на каждой странице и попадает в цитаты как часть фразы.
+    repeats = Counter(ln.strip() for page in pages for ln in page.splitlines()
+                      if 3 < len(ln.strip()) < 80)
+    drop = {ln for ln, n in repeats.items() if n >= max(3, len(pages) // 2)}
+    lines: list[str] = []
+    for page in pages:
+        for ln in page.splitlines():
+            stripped = ln.strip()
+            if stripped in drop or stripped.isdigit():
+                continue
+            lines.append(normalize_text(stripped))
+    paras = _reflow(lines)
+    # Обложка, выходные данные, адрес и правила цитирования занимали два-три спана из
+    # двенадцати, которые вообще достаются извлекателю. Отрезаем всё до первого настоящего
+    # абзаца: у преамбулы строки короткие, у текста — длинные.
+    first = next((i for i, ln in enumerate(paras) if len(ln) >= 200), None)
+    if first is not None and first < len(paras) // 2:
+        paras = paras[first:]
+    text = normalize_text("\n".join(paras).strip())
+    if len(text) < 200:
+        return None                              # скан без текстового слоя: нечего извлекать
+    meta = getattr(reader, "metadata", None)
+    title = normalize_text(str(getattr(meta, "title", "") or ""))
+    if not title or len(title) < 4:
+        title = next((ln for ln in text.split("\n") if 8 <= len(ln) <= 160), "")[:160]
+    return DocumentSnapshot(
+        url=url,
+        final_url=final_url,
+        title=title,
+        text=text,
+        text_sha256=hashlib.sha256(text.encode("utf-8")).hexdigest(),
+        # Дата публикации у PDF остаётся неизвестной: `/CreationDate` — это когда файл
+        # сверстали или пересобрали. Раньше она подставлялась сюда и уходила в промпт
+        # извлечения как дата документа, то есть могла стать «датированным событием».
+        published_at=None,
+        pdf_creation_date=_pdf_date(getattr(meta, "creation_date_raw", None)),
+    )
+
+
+def parse_document(body: bytes, url: str, final_url: str,
+                   content_type: str | None = None) -> DocumentSnapshot | None:
+    """Разбор по фактическому типу ответа, а не по расширению в ссылке."""
+    ctype = (content_type or "").split(";")[0].strip().lower()
+    if ctype == "application/pdf" or body[:5] == b"%PDF-":
+        return parse_pdf(body, url, final_url)
+    return parse_html(body, url, final_url)
+
 
 class FixtureFetcher:
     """Отдаёт заранее сохранённые страницы. Нужен, чтобы гонять конвейер офлайн."""
